@@ -12,6 +12,7 @@ import { DagLayout } from "../lib/layout";
 import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
 import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeType, Point, RunMode } from "../lib/types";
 import { EdgeLabel } from "./EdgeLabel";
+import { HierarchyPanel } from "./HierarchyPanel";
 import { Minimap } from "./Minimap";
 import { NodeCard } from "./NodeCard";
 import { IngestModal } from "./modals/IngestModal";
@@ -36,6 +37,7 @@ export function VibeArchitect() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
   const [showIngest, setShowIngest] = useState(false);
+  const [showHierarchy, setShowHierarchy] = useState(true);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasSize = useCanvasSize(canvasRef);
@@ -110,6 +112,19 @@ export function VibeArchitect() {
 
   // ── Selection ──
   const handleSelect = (id: string): void => {
+    setSelected(id);
+  };
+
+  /** Select a node and center the canvas on it (hierarchy browser). */
+  const focusNode = (id: string): void => {
+    const node = nodeMap.get(id);
+    if (node === undefined) {
+      return;
+    }
+    setPan({
+      x: canvasSize.width / 2 - (node.x + NODE_W / 2) * zoom,
+      y: canvasSize.height / 2 - (node.y + NODE_H / 2) * zoom,
+    });
     setSelected(id);
   };
 
@@ -238,6 +253,8 @@ export function VibeArchitect() {
         onFitToView={fitToView}
         onTidy={handleTidy}
         onSetAllCollapsed={setAllCollapsed}
+        hierarchyOpen={showHierarchy}
+        onToggleHierarchy={() => setShowHierarchy(open => !open)}
         onRunAll={() => void handleRunAll()}
         onShowSaveLoad={() => setShowSaveLoad(true)}
         onShowIngest={() => setShowIngest(true)}
@@ -306,6 +323,16 @@ export function VibeArchitect() {
           canvasH={canvasSize.height}
           onPanTo={(x, y) => setPan({ x, y })}
         />
+
+        {showHierarchy && (
+          <HierarchyPanel
+            nodes={nodes}
+            selected={selected}
+            onSelectAndFocus={focusNode}
+            onSetVisible={setVisible}
+            onClose={() => setShowHierarchy(false)}
+          />
+        )}
       </div>
 
       <StatusBar />
@@ -353,6 +380,7 @@ svg text { user-select: none; -webkit-user-select: none; }
   .va-status::-webkit-scrollbar { display: none; }
   .va-status span { white-space: nowrap; }
   .va-minimap { transform: scale(0.7); transform-origin: bottom right; }
+  .va-hierarchy { width: 180px !important; bottom: 122px !important; }
   .va-modal-backdrop { padding: 10px !important; }
   .va-modal-panel { padding: 14px !important; }
   .va-toolbar { padding-top: calc(6px + env(safe-area-inset-top)) !important; }

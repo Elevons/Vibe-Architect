@@ -24,6 +24,7 @@ npm run typecheck  # tsc --noEmit only
 - **Hierarchical scene graph** — any node can be a parent (folders are the natural parents); re-parent from the node editor, cycle-safe
 - **Show/hide** — the eye on each card toggles that node's own visibility; hiding a parent does not hide its children
 - **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
+- **Hierarchy browser** — a collapsible tree panel on the right (above the minimap) lists the whole scene graph; click a row to select and center the node, fold/unfold branches, or toggle a node's visibility; hidden nodes are dimmed; the “☰ Hierarchy” toolbar button shows/hides the panel
 - **Dependency edges** — drag from a node's right port to another node; click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too
 - **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
 - **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, parents each file under an auto-created (collapsed) folder node, and lays the graph out
@@ -45,6 +46,7 @@ src/
 │   ├── StatusBar.tsx         Bottom hint bar
 │   ├── NodeCard.tsx          A node: display, edit form, eye/chevron, agent output, ports
 │   ├── EdgeLabel.tsx         Inline-editable edge label (SVG)
+│   ├── HierarchyPanel.tsx    Scene hierarchy tree (right side, above minimap)
 │   ├── Minimap.tsx           Overview map with viewport + click-to-pan
 │   ├── Btn.tsx               Base button style
 │   └── modals/
@@ -79,8 +81,9 @@ test/
 
 ## Mobile gesture tests
 
-The gesture layer (pan, pinch, drag, double-tap, edge drag, collapse) is
-tested end-to-end against the real app with headless Chrome:
+The gesture layer (pan, pinch, drag, double-tap, edge drag, collapse, and
+the hierarchy panel: row focus, eye hide, branch fold) is tested end-to-end
+against the real app with headless Chrome:
 
 ```bash
 npm run dev -- --port 4175 &

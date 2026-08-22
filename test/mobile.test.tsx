@@ -145,7 +145,7 @@ async function run(): Promise<void> {
   await nextFrame();
   fire(canvas, "pointerup", 30, 30, 1);
   await nextFrame();
-  const stillSelected = (document.querySelector("[data-nodecard='true']") as HTMLElement).style.boxShadow.includes("0 0 0 2px");
+  const stillSelected = (document.querySelector("[data-nodecard='true']") as HTMLElement).style.boxShadow.includes("0px 0px 0px 2px");
   pass("tap deselects", !stillSelected);
 
   // ── Test 6: edge creation by dragging between ports (touch) ──
@@ -211,6 +211,49 @@ async function run(): Promise<void> {
   const isCollapsed = folderCard.textContent !== null && folderCard.textContent.includes("1 item");
   const childRemoved = !firstCard.isConnected;
   pass("collapse via chevron", isCollapsed && childRemoved, `collapsed=${isCollapsed} childRemoved=${childRemoved}`);
+
+  // ── Test 8: hierarchy panel — row click selects + centers the node ──
+  const panel = document.querySelector(".va-hierarchy");
+  if (panel === null) {
+    throw new Error("hierarchy panel not found");
+  }
+  const scrollArea = panel.querySelector(".va-hierarchy-scroll") as HTMLElement;
+  const rows = (): HTMLElement[] => Array.from(scrollArea.children, child => child as HTMLElement);
+  // Row order: roots first (file2, folder), then the folder's child (file1).
+  const targetRow = rows()[0];
+  const transformBefore = worldLayer().style.transform;
+  targetRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const transformAfter = worldLayer().style.transform;
+  const [selectedCard] = nodeCards();
+  const ringApplied = selectedCard.style.boxShadow.includes("0px 0px 0px 2px");
+  pass("hierarchy row focus", transformBefore !== transformAfter && ringApplied, `panned=${transformBefore !== transformAfter} ring=${ringApplied}`);
+
+  // ── Test 9: hierarchy eye hides the node from the canvas ──
+  const eyeButton = Array.from(rows()[0].querySelectorAll("button")).find(button => button.textContent === "👁");
+  if (eyeButton === undefined) {
+    throw new Error("eye button not found in hierarchy row");
+  }
+  eyeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const hiddenCardGone = !selectedCard.isConnected;
+  const rowDimmed = parseFloat((rows()[0] as HTMLElement).style.opacity) < 1;
+  pass("hierarchy eye hides node", hiddenCardGone && rowDimmed, `gone=${hiddenCardGone} dimmed=${rowDimmed}`);
+
+  // ── Test 10: hierarchy fold tucks the branch's rows away ──
+  const folderRow = rows().find(row => row.textContent?.includes("new_folder/"));
+  if (folderRow === undefined) {
+    throw new Error("folder row not found");
+  }
+  const foldButton = Array.from(folderRow.querySelectorAll("button")).find(button => button.textContent === "▾");
+  if (foldButton === undefined) {
+    throw new Error("fold chevron not found on folder row");
+  }
+  const childRowsBefore = rows().filter(row => row.textContent?.includes("new_file.js")).length;
+  foldButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const childRowsAfter = rows().filter(row => row.textContent?.includes("new_file.js")).length;
+  pass("hierarchy fold", childRowsAfter === childRowsBefore - 1, `rows ${childRowsBefore} → ${childRowsAfter}`);
 
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");

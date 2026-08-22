@@ -20,6 +20,8 @@ interface ToolbarProps {
   onFitToView: () => void;
   onTidy: () => void;
   onSetAllCollapsed: (collapsed: boolean) => void;
+  hierarchyOpen: boolean;
+  onToggleHierarchy: () => void;
   onRunAll: () => void;
   onShowSaveLoad: () => void;
   onShowIngest: () => void;
@@ -45,6 +47,16 @@ export function Toolbar(props: ToolbarProps) {
       <Btn onClick={props.onTidy} style={{ fontSize: 10, padding: "4px 8px", background: "#22d3ee18", color: "#22d3ee", borderColor: "#22d3ee30" }}>Tidy</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(false)} style={{ fontSize: 10, padding: "4px 8px" }}>Expand All</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(true)} style={{ fontSize: 10, padding: "4px 8px" }}>Collapse All</Btn>
+      <Btn
+        onClick={props.onToggleHierarchy}
+        title="Toggle the scene hierarchy browser"
+        style={{
+          fontSize: 10, padding: "4px 8px",
+          background: props.hierarchyOpen ? "#818cf818" : undefined,
+          color: props.hierarchyOpen ? "#818cf8" : undefined,
+          borderColor: props.hierarchyOpen ? "#818cf830" : undefined,
+        }}
+      >☰ Hierarchy</Btn>
       <div className="va-spacer" style={{ flex: 1 }} />
       <span className="va-counts" style={{ color: "#555", fontSize: 10 }}>{props.nodeCount}n · {props.edgeCount}e</span>
       <Btn onClick={props.onRunAll} style={{ background: "#4ade8018", color: "#4ade80", borderColor: "#4ade8030", fontSize: 11, padding: "4px 10px" }}>▶ Run All</Btn>

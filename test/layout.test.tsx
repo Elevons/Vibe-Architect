@@ -20,6 +20,7 @@ const root = document.querySelector(".va-root");
 const toolbar = document.querySelector(".va-toolbar");
 const status = document.querySelector(".va-status");
 const minimap = document.querySelector(".va-minimap");
+const hierarchy = document.querySelector(".va-hierarchy");
 if (root === null || toolbar === null || status === null || minimap === null) {
   throw new Error("missing layout elements");
 }
@@ -32,6 +33,12 @@ out.push(`toolbar: ${rect(toolbar)} rows=${toolbar.getBoundingClientRect().heigh
 out.push(`smallest toolbar button height: ${Math.round(smallestButton)}px`);
 out.push(`status: ${rect(status)} overflowX=${cs(status).overflowX}`);
 out.push(`minimap: ${rect(minimap)} transform=${cs(minimap).transform}`);
+if (hierarchy !== null) {
+  const gap = minimap.getBoundingClientRect().top - hierarchy.getBoundingClientRect().bottom;
+  out.push(`hierarchy: ${rect(hierarchy)} gapAboveMinimap=${Math.round(gap)}px`);
+} else {
+  out.push("hierarchy: (not rendered)");
+}
 out.push(`body scrollHeight: ${document.body.scrollHeight} (should equal viewport height)`);
 
 const outElement = document.getElementById("out");
