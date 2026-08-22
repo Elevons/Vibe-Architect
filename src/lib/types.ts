@@ -1,9 +1,10 @@
 /**
  * Core domain types for the architecture graph.
  *
- * Terminology: a *node* is a box on the canvas (file, folder, or concept),
- * an *edge* is a dependency arrow between nodes, and a *group* is a named
- * subgraph that can be collapsed into a folder card.
+ * The graph is a *scene graph*: every node is an object in a tree (via
+ * `parentId`) that can be shown/hidden (`visible`) and, when it has
+ * children, collapsed into a compact card (`collapsed`). A *folder* node
+ * is a group — there is no separate group type.
  */
 
 /** Kinds of boxes that can appear on the canvas. */
@@ -24,8 +25,12 @@ export interface GraphNode {
   path: string;
   desc: string;
   type: NodeType;
-  /** Owning group id, or null for ungrouped nodes. */
-  group: string | null;
+  /** Parent node id in the scene graph, or null for a root. */
+  parentId: string | null;
+  /** Shown on the canvas when true (independent of children). */
+  visible: boolean;
+  /** When true, renders as a compact card and tucks its subtree away. */
+  collapsed: boolean;
   /** Code produced by the agent, if any. */
   agentOutput: string | null;
   agentStatus: AgentStatus;
@@ -37,15 +42,6 @@ export interface GraphEdge {
   from: string;
   to: string;
   label: string;
-}
-
-/** A named subgraph. `x`/`y` are set by layout when it renders as a card. */
-export interface GraphGroup {
-  id: string;
-  name: string;
-  collapsed?: boolean;
-  x?: number | null;
-  y?: number | null;
 }
 
 /** Axis-aligned rectangle in world coordinates. */
@@ -66,7 +62,6 @@ export interface Point {
 export interface GraphSnapshot {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  groups: GraphGroup[];
   mode: RunMode;
 }
 
@@ -82,7 +77,6 @@ export interface IngestFileEntry {
 export interface IngestResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  groups: GraphGroup[];
 }
 
 /** Per-node-type colors used by cards, ports, and the minimap. */
@@ -95,5 +89,4 @@ export interface TypeColors {
 /** Positioning of a laid-out graph. */
 export interface LayoutResult {
   nodes: GraphNode[];
-  groups: GraphGroup[];
 }

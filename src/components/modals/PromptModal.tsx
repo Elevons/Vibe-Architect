@@ -1,6 +1,6 @@
 import { FONT } from "../../lib/constants";
 import { BuildArchitecturePrompt } from "../../lib/prompt";
-import type { GraphEdge, GraphGroup, GraphNode, RunMode } from "../../lib/types";
+import type { GraphEdge, GraphNode, RunMode } from "../../lib/types";
 import { ModalShell } from "./ModalShell";
 
 /**
@@ -10,13 +10,12 @@ import { ModalShell } from "./ModalShell";
 interface PromptModalProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  groups: GraphGroup[];
   mode: RunMode;
   onClose: () => void;
 }
 
-export function PromptModal({ nodes, edges, groups, mode, onClose }: PromptModalProps) {
-  const prompt = BuildArchitecturePrompt(nodes, edges, groups, mode);
+export function PromptModal({ nodes, edges, mode, onClose }: PromptModalProps) {
+  const prompt = BuildArchitecturePrompt(nodes, edges, mode);
 
   return (
     <ModalShell title="Exported Architecture Prompt" maxWidth={720} gap={12} maxHeight="85vh" onClose={onClose}>

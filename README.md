@@ -1,9 +1,12 @@
 # Vibe Architect
 
-A node-graph canvas for designing software architecture. Model files, folders,
-and concepts as nodes; draw dependency edges between them; let an LLM generate
-code per node (with upstream context); ingest a real repository to build the
-graph automatically; and export the whole design as a prompt for another agent.
+A node-graph canvas for designing software architecture. The graph is a
+*hierarchical scene graph*: every node is an object in a tree (via `parentId`)
+that can be shown/hidden and, when it has children, collapsed into a compact
+card. Model files, folders, and concepts as nodes; draw dependency edges
+between them; let an LLM generate code per node (with upstream context);
+ingest a real repository to build the graph automatically; and export the
+whole design as a prompt for another agent.
 
 ## Getting started
 
@@ -17,14 +20,16 @@ npm run typecheck  # tsc --noEmit only
 ## Features
 
 - **Node graph canvas** — pan, zoom (wheel, toward cursor), grid, minimap
-- **Three node types** — file, folder, concept; double-click to edit name, spec, type, and group
-- **Dependency edges** — drag from a node's right port to another node; click an edge to delete; double-click a label to rename
-- **Groups** — collapse/expand subgraphs into folder cards; click a card to focus (dims the rest)
+- **Three node types** — file, folder, concept; double-click to edit name, spec, type, and parent
+- **Hierarchical scene graph** — any node can be a parent (folders are the natural parents); re-parent from the node editor, cycle-safe
+- **Show/hide** — the eye on each card toggles that node's own visibility; hiding a parent does not hide its children
+- **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
+- **Dependency edges** — drag from a node's right port to another node; click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too
 - **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
-- **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, auto-groups by directory, and lays the graph out
+- **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, parents each file under an auto-created (collapsed) folder node, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
-- **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker
-- **Export Prompt** — serialize the graph to markdown and copy it to the clipboard
+- **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
+- **Export Prompt** — serialize the graph to markdown (including the structure tree) and copy it to the clipboard
 
 ## Project structure
 
@@ -32,37 +37,36 @@ npm run typecheck  # tsc --noEmit only
 src/
 ├── main.tsx                  Entry point
 ├── App.tsx                   Root component
-├── vite-env.d.ts             window.storage type declarations
+├── vite-env.d.ts             Vite client types
 ├── components/
 │   ├── VibeArchitect.tsx     Main canvas: state, orchestration, world rendering
 │   ├── Toolbar.tsx           Top toolbar
 │   ├── StatusBar.tsx         Bottom hint bar
-│   ├── NodeCard.tsx          A node: display, edit form, agent output, ports
-│   ├── GroupCard.tsx         Collapsed group card
+│   ├── NodeCard.tsx          A node: display, edit form, eye/chevron, agent output, ports
 │   ├── EdgeLabel.tsx         Inline-editable edge label (SVG)
 │   ├── Minimap.tsx           Overview map with viewport + click-to-pan
 │   ├── Btn.tsx               Base button style
 │   └── modals/
 │       ├── ModalShell.tsx    Shared modal chrome
 │       ├── PromptModal.tsx   Exported architecture prompt
-│       ├── SaveLoadModal.tsx Save/load/delete graphs
-│       ├── GroupModal.tsx    Manage groups
+│       ├── SaveLoadModal.tsx Save/load graphs as .json files
 │       └── IngestModal.tsx   Repository ingestion
 ├── hooks/
 │   ├── useCanvasSize.ts      ResizeObserver-based size tracking
 │   ├── useWheelZoom.ts       Non-passive wheel zoom toward cursor
 │   └── useCanvasInteraction.ts  Drag / pan / edge-draft pointer logic
 └── lib/
-    ├── types.ts              Domain types (node, edge, group, …)
+    ├── types.ts              Domain types (node, edge, snapshot, …)
     ├── constants.ts          Dimensions, zoom limits, colors, demo data
     ├── ids.ts                Unique id generation
     ├── geometry.ts           Ports, edge curves, coordinate conversion, bounds
     ├── graph.ts              Topological sort
-    ├── layout.ts             DAG layout, auto-grouping, grid fallback
-    ├── fileStorage.ts        JSON file save/load (download + file picker)
+    ├── layout.ts             DAG layout, grid fallback
+    ├── sceneGraph.ts         Tree ops: rendered set, subtree ids, cycle-safe re-parent
+    ├── fileStorage.ts        JSON file save/load (download + file picker) + legacy migration
     ├── anthropic.ts          Minimal Anthropic Messages API client
     ├── agent.ts              Per-node code generation + file description
-    ├── ingest.ts             Import parsing, import resolution, graph build
+    ├── ingest.ts             Import parsing, import resolution, folder parenting, graph build
     └── prompt.ts             Architecture prompt builder
 ```
 

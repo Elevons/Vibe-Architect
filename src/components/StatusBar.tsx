@@ -8,8 +8,8 @@ const HINTS = [
   "Scroll to zoom",
   "Drag canvas to pan",
   "Double-click node to edit",
-  "Expand folder cards to see files",
-  "Click folder card to focus",
+  "👁 eye show/hides a node",
+  "▾ chevron collapses a parent",
   "Drag ● → ● to connect",
   "Double-click edge label to rename",
 ];

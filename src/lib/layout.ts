@@ -1,6 +1,5 @@
-import { GROUP_CARD_H, NODE_H, NODE_W } from "./constants";
-import { CreateUniqueId } from "./ids";
-import type { GraphEdge, GraphGroup, GraphNode, IngestFileEntry, LayoutResult } from "./types";
+import { NODE_H, NODE_W } from "./constants";
+import type { GraphEdge, GraphNode, IngestFileEntry, LayoutResult } from "./types";
 
 /**
  * Automatic layout: Sugiyama-style DAG arrangement.
@@ -21,12 +20,13 @@ function SortKeyOf(node: GraphNode): string {
 }
 
 /**
- * Lay out all nodes in a left-to-right, top-to-bottom DAG. Group cards are
- * positioned above their members. Cycles are tolerated.
+ * Lay out all nodes in a left-to-right, top-to-bottom DAG. Cycles are
+ * tolerated. Hierarchy (parent/child) does not affect positioning — nodes
+ * keep free world coordinates.
  */
-export function DagLayout(nodes: GraphNode[], edges: GraphEdge[], groups: GraphGroup[]): LayoutResult {
+export function DagLayout(nodes: GraphNode[], edges: GraphEdge[]): LayoutResult {
   if (nodes.length === 0) {
-    return { nodes, groups };
+    return { nodes };
   }
 
   // ── 1. Build adjacency ──
@@ -135,93 +135,13 @@ export function DagLayout(nodes: GraphNode[], edges: GraphEdge[], groups: GraphG
     });
   });
 
-  // ── 6. Position group cards above their members ──
-  const outGroups = groups.map(group => {
-    const members = nodes.filter(node => node.group === group.id);
-    if (members.length === 0) {
-      return { ...group, x: null, y: null };
-    }
-    const xs = members.map(node => positions.get(node.id)?.x ?? 0);
-    const ys = members.map(node => positions.get(node.id)?.y ?? 0);
-    return { ...group, x: Math.min(...xs), y: Math.min(...ys) - GROUP_CARD_H - 20 };
-  });
-
   return {
     nodes: nodes.map(node => ({
       ...node,
       x: positions.get(node.id)?.x ?? node.x,
       y: positions.get(node.id)?.y ?? node.y,
     })),
-    groups: outGroups,
   };
-}
-
-/**
- * Directory key for a node: folders key by id, files by their path's
- * directory, grouped nodes by group id, and everything else is root.
- */
-function NodeDirOf(node: GraphNode): string {
-  if (node.type === "folder") {
-    return `__folder__:${node.id}`;
-  }
-  const path = node.path || "";
-  const slash = path.lastIndexOf("/");
-  if (slash > 0) {
-    return path.slice(0, slash);
-  }
-  if (node.group !== null) {
-    return `grp_${node.group}`;
-  }
-  return "__root__";
-}
-
-/**
- * Auto-create one group per directory that actually contains files, then
- * assign ungrouped file nodes to their directory group.
- */
-export function AutoGroupFromNodes(nodes: GraphNode[], existingGroups: GraphGroup[]): LayoutResult {
-  const dirSet = new Set<string>();
-  for (const node of nodes) {
-    if (node.type === "folder") {
-      continue;
-    }
-    const dir = NodeDirOf(node);
-    if (dir !== "" && dir !== "__root__" && !dir.startsWith("__folder__:") && !dir.startsWith("grp_")) {
-      dirSet.add(dir);
-    }
-  }
-
-  const existingNames = new Set(existingGroups.map(group => group.name));
-  const newGroups = [...existingGroups];
-  const dirToGroup = new Map<string, string>();
-  for (const group of existingGroups) {
-    dirToGroup.set(group.name, group.id);
-  }
-
-  for (const dir of Array.from(dirSet).sort()) {
-    if (!existingNames.has(dir)) {
-      const groupId = CreateUniqueId("g");
-      newGroups.push({ id: groupId, name: dir });
-      dirToGroup.set(dir, groupId);
-    }
-  }
-
-  const updatedNodes = nodes.map(node => {
-    if (node.group !== null) {
-      return node;
-    }
-    if (node.type === "folder") {
-      return node;
-    }
-    const dir = NodeDirOf(node);
-    const groupId = dirToGroup.get(dir);
-    if (groupId !== undefined) {
-      return { ...node, group: groupId };
-    }
-    return node;
-  });
-
-  return { groups: newGroups, nodes: updatedNodes };
 }
 
 /**

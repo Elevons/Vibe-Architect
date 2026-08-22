@@ -3,8 +3,8 @@ import type { NodeType, RunMode } from "../lib/types";
 import { Btn } from "./Btn";
 
 /**
- * Top toolbar: node creation, groups, run mode, zoom controls, layout
- * actions, and the run/save/ingest/prompt entry points.
+ * Top toolbar: node creation, run mode, zoom controls, layout actions,
+ * and the run/save/ingest/prompt entry points.
  */
 
 interface ToolbarProps {
@@ -13,7 +13,6 @@ interface ToolbarProps {
   nodeCount: number;
   edgeCount: number;
   onAddNode: (type: NodeType) => void;
-  onShowGroups: () => void;
   onSetMode: (mode: RunMode) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -40,7 +39,6 @@ export function Toolbar(props: ToolbarProps) {
       <Btn onClick={() => props.onAddNode("file")} style={{ fontSize: 11, padding: "4px 10px", color: "#818cf8", borderColor: "#818cf830" }}>+ File</Btn>
       <Btn onClick={() => props.onAddNode("folder")} style={{ fontSize: 11, padding: "4px 10px", color: "#4ade80", borderColor: "#4ade8030" }}>+ Folder</Btn>
       <Btn onClick={() => props.onAddNode("concept")} style={{ fontSize: 11, padding: "4px 10px", color: "#facc15", borderColor: "#facc1530" }}>+ Concept</Btn>
-      <Btn onClick={props.onShowGroups} style={{ fontSize: 11, padding: "4px 10px" }}>⊞ Groups</Btn>
       {renderModeSwitch(props.mode, props.onSetMode)}
       {renderZoomControls(props)}
       <Btn onClick={props.onFitToView} style={{ fontSize: 10, padding: "4px 8px" }}>Fit</Btn>

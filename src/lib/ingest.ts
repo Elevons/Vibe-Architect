@@ -1,6 +1,6 @@
 import { CreateUniqueId } from "./ids";
 import { DescribeFile } from "./agent";
-import { AutoGroupFromNodes, DagLayout } from "./layout";
+import { DagLayout } from "./layout";
 import type { GraphEdge, GraphNode, IngestFileEntry, IngestResult } from "./types";
 
 /**
@@ -110,9 +110,53 @@ export function ResolveImport(imp: string, fromPath: string, allPaths: string[])
 }
 
 /**
+ * Auto-build the folder hierarchy from file paths: one folder node per
+ * directory (nested by path, created collapsed), each file parented to its
+ * directory. Files at the root stay parentless.
+ */
+export function AutoParentFromNodes(nodes: GraphNode[]): GraphNode[] {
+  const dirToId = new Map<string, string>();
+  const folderNodes: GraphNode[] = [];
+
+  const EnsureFolderChain = (dir: string): string | null => {
+    if (dir === "") {
+      return null;
+    }
+    const existing = dirToId.get(dir);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const parts = dir.split("/");
+    const parentId = EnsureFolderChain(parts.slice(0, -1).join("/"));
+    const folderId = CreateUniqueId("n");
+    dirToId.set(dir, folderId);
+    folderNodes.push({
+      id: folderId, x: 0, y: 0, name: `${dir}/`, path: dir,
+      desc: `Directory ${dir}`, type: "folder", parentId, visible: true, collapsed: true,
+      agentOutput: null, agentStatus: "idle",
+    });
+    return folderId;
+  };
+
+  return [
+    ...nodes.map(node => {
+      if (node.type === "folder") {
+        return node;
+      }
+      const slash = node.path.lastIndexOf("/");
+      if (slash <= 0) {
+        return node;
+      }
+      return { ...node, parentId: EnsureFolderChain(node.path.slice(0, slash)) };
+    }),
+    ...folderNodes,
+  ];
+}
+
+/**
  * Turn the read files into a laid-out graph: one node per file (described
- * by the LLM unless skipped), edges from parsed imports, auto-grouped by
- * directory and collapsed, then DAG-laid-out.
+ * by the LLM unless skipped), edges from parsed imports, files parented
+ * under auto-created (collapsed) folder nodes, then DAG-laid-out.
  */
 export async function BuildIngestGraph(
   files: IngestFileEntry[],
@@ -132,17 +176,15 @@ export async function BuildIngestGraph(
     const description = skipDescribe ? file.path : await DescribeFile(file.path, file.content.slice(0, 2000));
     nodes.push({
       id, x: 0, y: 0, name: file.name, path: file.path, desc: description,
-      type: "file", group: null, agentOutput: file.content, agentStatus: "done",
+      type: "file", parentId: null, visible: true, collapsed: false,
+      agentOutput: file.content, agentStatus: "done",
     });
   }
 
   const edges = BuildImportEdges(files, pathToId, allPaths);
-
-  // Directories become collapsed groups; the DAG layout positions everything.
-  const { groups: autoGroups, nodes: groupedNodes } = AutoGroupFromNodes(nodes, []);
-  const collapsedGroups = autoGroups.map(group => ({ ...group, collapsed: true }));
-  const { nodes: laidNodes, groups: laidGroups } = DagLayout(groupedNodes, edges, collapsedGroups);
-  return { nodes: laidNodes, edges, groups: laidGroups };
+  const parented = AutoParentFromNodes(nodes);
+  const { nodes: laidNodes } = DagLayout(parented, edges);
+  return { nodes: laidNodes, edges };
 }
 
 /** One edge per import that resolves to another file in the set. */

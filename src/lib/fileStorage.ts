@@ -1,4 +1,4 @@
-import type { GraphSnapshot } from "./types";
+import type { GraphNode, GraphSnapshot } from "./types";
 
 /**
  * File-based persistence: saving downloads a pretty-printed JSON file,
@@ -35,24 +35,86 @@ export async function LoadGraphFromFile(file: File): Promise<GraphSnapshot | nul
 }
 
 /**
- * Parse snapshot JSON with a light shape check: an object whose nodes,
- * edges, and groups are arrays (mode defaults to parallel).
+ * Parse snapshot JSON with a light shape check: an object whose nodes and
+ * edges are arrays (mode defaults to parallel). Node fields are normalized
+ * so files saved before the scene-graph fields existed still load.
  */
 export function ParseGraphSnapshot(text: string): GraphSnapshot | null {
-  const data: unknown = JSON.parse(text);
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
   if (typeof data !== "object" || data === null) {
     return null;
   }
-  const candidate = data as Partial<GraphSnapshot>;
-  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges) || !Array.isArray(candidate.groups)) {
+  const candidate = data as Partial<GraphSnapshot> & { groups?: unknown };
+  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.edges)) {
     return null;
   }
   return {
-    nodes: candidate.nodes,
+    nodes: [...candidate.nodes.map(NormalizeNode), ...LegacyGroupFolders(candidate.groups)],
     edges: candidate.edges,
-    groups: candidate.groups,
     mode: candidate.mode === "serial" ? "serial" : "parallel",
   };
+}
+
+/**
+ * Fill in missing scene-graph fields with safe defaults. A legacy `group`
+ * membership becomes a parent link, so old files keep their grouping.
+ */
+function NormalizeNode(raw: unknown): GraphNode {
+  const node = raw as Partial<GraphNode> & { group?: unknown };
+  const legacyGroup = typeof node.group === "string" ? node.group : null;
+  return {
+    id: typeof node.id === "string" ? node.id : "",
+    x: Number(node.x ?? 0),
+    y: Number(node.y ?? 0),
+    name: typeof node.name === "string" ? node.name : "",
+    path: typeof node.path === "string" ? node.path : "",
+    desc: typeof node.desc === "string" ? node.desc : "",
+    type: node.type === "folder" || node.type === "concept" ? node.type : "file",
+    parentId: typeof node.parentId === "string" ? node.parentId : legacyGroup,
+    visible: node.visible !== false,
+    collapsed: node.collapsed === true,
+    agentOutput: typeof node.agentOutput === "string" ? node.agentOutput : null,
+    agentStatus: IsAgentStatus(node.agentStatus) ? node.agentStatus : "idle",
+  };
+}
+
+/** Legacy group entries become folder nodes, keeping their id as the parent id. */
+function LegacyGroupFolders(rawGroups: unknown): GraphNode[] {
+  if (!Array.isArray(rawGroups)) {
+    return [];
+  }
+  const folders: GraphNode[] = [];
+  for (const raw of rawGroups) {
+    const group = raw as { id?: unknown; name?: unknown; collapsed?: unknown; x?: unknown; y?: unknown } | null;
+    if (group === null || typeof group.id !== "string") {
+      continue;
+    }
+    folders.push({
+      id: group.id,
+      x: Number(group.x ?? 0),
+      y: Number(group.y ?? 0),
+      name: typeof group.name === "string" ? `${group.name}/` : "folder/",
+      path: "",
+      desc: "Directory",
+      type: "folder",
+      parentId: null,
+      visible: true,
+      collapsed: group.collapsed === true,
+      agentOutput: null,
+      agentStatus: "idle",
+    });
+  }
+  return folders;
+}
+
+/** Narrow an unknown value to AgentStatus. */
+function IsAgentStatus(value: unknown): value is GraphNode["agentStatus"] {
+  return value === "idle" || value === "running" || value === "done" || value === "error";
 }
 
 /** A safe .json file name for the given graph name. */

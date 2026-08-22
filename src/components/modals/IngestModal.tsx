@@ -16,7 +16,7 @@ const MAX_FILE_SIZE = 500_000;
 
 interface IngestModalProps {
   onClose: () => void;
-  onIngest: (nodes: IngestResult["nodes"], edges: IngestResult["edges"], groups: IngestResult["groups"]) => void;
+  onIngest: (nodes: IngestResult["nodes"], edges: IngestResult["edges"]) => void;
 }
 
 export function IngestModal({ onClose, onIngest }: IngestModalProps) {
@@ -62,8 +62,9 @@ export function IngestModal({ onClose, onIngest }: IngestModalProps) {
       setAnalyzed(index);
     });
     setStatus("done");
-    setProgress(`Done! ${result.nodes.length} nodes, ${result.edges.length} edges, ${result.groups.length} folders (collapsed)`);
-    onIngest(result.nodes, result.edges, result.groups);
+    const folderCount = result.nodes.filter(node => node.type === "folder").length;
+    setProgress(`Done! ${result.nodes.length - folderCount} files, ${result.edges.length} edges, ${folderCount} folders (collapsed)`);
+    onIngest(result.nodes, result.edges);
   };
 
   const busy = status === "analyzing" || status === "done";

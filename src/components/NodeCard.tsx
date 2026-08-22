@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
-import { FONT, NODE_W, TYPE_COLORS } from "../lib/constants";
+import { FONT, GROUP_CARD_H, NODE_W, TYPE_COLORS } from "../lib/constants";
+import { BuildNodeMap, DescendantCount, SubtreeIds } from "../lib/sceneGraph";
 import { Btn } from "./Btn";
-import type { GraphGroup, GraphNode, NodeType } from "../lib/types";
+import type { GraphNode, NodeType } from "../lib/types";
 
 /**
  * A single box on the canvas. Double-click enters edit mode (name, spec,
- * type, group); when selected, an action row offers Edit / Agent / Code /
+ * type, parent); when selected, an action row offers Edit / Agent / Code /
  * Delete. Ports on the edges start and end connections.
+ *
+ * Corner controls: an eye toggles the node's own visibility, and a chevron
+ * (parents only) collapses/expands its subtree. A collapsed parent renders
+ * as a compact card with its descendant count.
  */
 
 interface NodeCardProps {
   node: GraphNode;
   selected: boolean;
-  groups: GraphGroup[];
+  nodes: GraphNode[];
   zoom: number;
   onSelect: (id: string) => void;
   onDragStart: (event: ReactMouseEvent, id: string) => void;
@@ -22,13 +27,16 @@ interface NodeCardProps {
   onStartEdge: (id: string, event: ReactMouseEvent) => void;
   onEndEdge: (id: string) => void;
   onRunAgent: (id: string) => void;
+  onToggleCollapse: (id: string) => void;
+  onSetVisible: (id: string, visible: boolean) => void;
+  onSetParent: (id: string, parentId: string | null) => void;
 }
 
 /** Tags whose mousedown must not start a card drag. */
-const NON_DRAG_TAGS = ["TEXTAREA", "INPUT", "SELECT"];
+const NON_DRAG_TAGS = ["TEXTAREA", "INPUT", "SELECT", "BUTTON"];
 
 export function NodeCard(props: NodeCardProps) {
-  const { node, selected, groups } = props;
+  const { node, selected, nodes } = props;
   const [editing, setEditing] = useState(false);
   const [localName, setLocalName] = useState(node.name);
   const [localDesc, setLocalDesc] = useState(node.desc);
@@ -41,7 +49,8 @@ export function NodeCard(props: NodeCardProps) {
   }, [node.name, node.desc]);
 
   const colors = TYPE_COLORS[node.type];
-  const statusColor = AgentStatusColor(node.agentStatus);
+  const descendantCount = DescendantCount(nodes, node.id);
+  const isParent = descendantCount > 0;
 
   const commitEdit = (): void => {
     props.onUpdate(node.id, { name: localName, desc: localDesc });
@@ -63,6 +72,10 @@ export function NodeCard(props: NodeCardProps) {
     props.onDragStart(event, node.id);
   };
 
+  if (node.collapsed) {
+    return renderCollapsedCard(node, selected, colors, descendantCount, props);
+  }
+
   return (
     <div
       data-nodecard="true"
@@ -76,16 +89,11 @@ export function NodeCard(props: NodeCardProps) {
       }}
     >
       {renderPorts(node, colors, props)}
-      {node.agentStatus !== "idle" && (
-        <div style={{
-          position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%",
-          background: statusColor, animation: node.agentStatus === "running" ? "pulse 1s infinite" : "none",
-        }} />
-      )}
+      {renderCornerControls(node, isParent, props)}
       {editing
-        ? renderEditForm(node, localName, localDesc, groups, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
-        : renderDisplay(node, groups, setEditing)}
-      {selected && !editing && renderActionRow(node, editing, showOutput, setEditing, setShowOutput, props)}
+        ? renderEditForm(node, nodes, localName, localDesc, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
+        : renderDisplay(node, nodes, setEditing, isParent)}
+      {selected && !editing && renderActionRow(node, showOutput, setEditing, setShowOutput, props)}
       {showOutput && node.agentOutput !== null && (
         <pre style={{
           marginTop: 8, padding: 8, background: "#0a0a0f", border: "1px solid #222", borderRadius: 4,
@@ -94,6 +102,88 @@ export function NodeCard(props: NodeCardProps) {
         }}>{node.agentOutput}</pre>
       )}
     </div>
+  );
+}
+
+/** Compact card for a collapsed parent: name, descendant count, expand. */
+function renderCollapsedCard(
+  node: GraphNode,
+  selected: boolean,
+  colors: { border: string; dot: string },
+  descendantCount: number,
+  props: NodeCardProps,
+) {
+  return (
+    <div
+      data-nodecard="true"
+      onMouseDown={event => {
+        event.stopPropagation();
+        props.onSelect(node.id);
+        props.onDragStart(event, node.id);
+      }}
+      style={{
+        position: "absolute", left: node.x, top: node.y, width: NODE_W, height: GROUP_CARD_H,
+        background: "#15151c", border: `1.5px solid ${selected ? "#fff" : colors.border}88`,
+        borderRadius: 8, padding: "8px 12px", boxSizing: "border-box",
+        display: "flex", flexDirection: "column", justifyContent: "space-between",
+        cursor: "grab", userSelect: "none", zIndex: 5,
+        boxShadow: selected ? `0 0 0 2px ${colors.border}44, 0 4px 24px #0008` : "0 2px 12px #0004",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 46 }}>
+        <span style={{ color: colors.dot, fontSize: 12, lineHeight: 1 }}>▣</span>
+        <span style={{
+          fontFamily: FONT, fontSize: 12, fontWeight: 700, color: "#e8e8f0",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{node.name}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontFamily: FONT, fontSize: 9, color: "#666" }}>
+          {descendantCount} item{descendantCount === 1 ? "" : "s"}
+        </span>
+        <button
+          onClick={event => { event.stopPropagation(); props.onToggleCollapse(node.id); }}
+          style={{
+            background: `${colors.dot}18`, border: `1px solid ${colors.dot}40`, borderRadius: 4, color: colors.dot,
+            padding: "2px 8px", fontSize: 9, cursor: "pointer", fontFamily: FONT, fontWeight: 600,
+          }}
+        >
+          Expand ▾
+        </button>
+      </div>
+      {renderCornerControls(node, true, props)}
+    </div>
+  );
+}
+
+/** Eye (visibility) and chevron (collapse) buttons in the card corner. */
+function renderCornerControls(node: GraphNode, isParent: boolean, props: NodeCardProps) {
+  const buttonStyle: CSSProperties = {
+    position: "absolute", top: 4, width: 18, height: 18, borderRadius: 4,
+    background: "#0006", border: "1px solid #ffffff22", color: "#aaa",
+    fontSize: 10, lineHeight: "16px", textAlign: "center", cursor: "pointer", padding: 0, zIndex: 20,
+  };
+  return (
+    <>
+      {isParent && (
+        <button
+          style={{ ...buttonStyle, right: 26 }}
+          title={node.collapsed ? "Expand children" : "Collapse children"}
+          onMouseDown={event => event.stopPropagation()}
+          onClick={event => { event.stopPropagation(); props.onToggleCollapse(node.id); }}
+        >
+          {node.collapsed ? "▸" : "▾"}
+        </button>
+      )}
+      <button
+        style={{ ...buttonStyle, right: 4, opacity: node.visible ? 1 : 0.45 }}
+        title={node.visible ? "Hide node" : "Show node"}
+        onMouseDown={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); props.onSetVisible(node.id, !node.visible); }}
+      >
+        {node.visible ? "👁" : "–"}
+      </button>
+    </>
   );
 }
 
@@ -134,13 +224,20 @@ function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardPr
 }
 
 /** Double-clickable read-only view of the node. */
-function renderDisplay(node: GraphNode, groups: GraphGroup[], setEditing: (editing: boolean) => void) {
+function renderDisplay(node: GraphNode, nodes: GraphNode[], setEditing: (editing: boolean) => void, isParent: boolean) {
   const colors = TYPE_COLORS[node.type];
-  const groupName = node.group !== null ? groups.find(group => group.id === node.group)?.name ?? "" : "";
+  const nodeMap = BuildNodeMap(nodes);
+  const parentName = node.parentId !== null ? nodeMap.get(node.parentId)?.name ?? "" : "";
+  const statusColor = AgentStatusColor(node.agentStatus);
   return (
     <div onDoubleClick={() => setEditing(true)}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors.dot, flexShrink: 0 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingRight: isParent ? 46 : 26 }}>
+        {node.agentStatus !== "idle" && (
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%", background: statusColor, flexShrink: 0,
+            animation: node.agentStatus === "running" ? "pulse 1s infinite" : "none",
+          }} />
+        )}
         <span style={{
           fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#f0f0f0",
           letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -156,19 +253,19 @@ function renderDisplay(node: GraphNode, groups: GraphGroup[], setEditing: (editi
           {node.path}
         </span>
       )}
-      {node.group !== null && (
-        <span style={{ fontSize: 9, color: "#666", marginTop: 2, display: "inline-block" }}>⤷ {groupName}</span>
+      {node.parentId !== null && parentName !== "" && (
+        <span style={{ fontSize: 9, color: "#666", marginTop: 2, display: "inline-block" }}>⤷ {parentName}</span>
       )}
     </div>
   );
 }
 
-/** Edit form: name, spec, type, group, save/cancel. */
+/** Edit form: name, spec, type, parent, save/cancel. */
 function renderEditForm(
   node: GraphNode,
+  nodes: GraphNode[],
   localName: string,
   localDesc: string,
-  groups: GraphGroup[],
   colors: { border: string },
   setLocalName: (name: string) => void,
   setLocalDesc: (desc: string) => void,
@@ -199,10 +296,10 @@ function renderEditForm(
             <option key={type} value={type}>{type}</option>
           ))}
         </select>
-        <select value={node.group ?? ""} onChange={event => props.onUpdate(node.id, { group: event.target.value || null })} style={selectStyle}>
-          <option value="">No group</option>
-          {groups.map(group => (
-            <option key={group.id} value={group.id}>{group.name}</option>
+        <select value={node.parentId ?? ""} onChange={event => props.onSetParent(node.id, event.target.value || null)} style={selectStyle}>
+          <option value="">No parent</option>
+          {ParentOptions(nodes, node.id).map(option => (
+            <option key={option.id} value={option.id}>{option.name}</option>
           ))}
         </select>
       </div>
@@ -214,18 +311,23 @@ function renderEditForm(
   );
 }
 
+/**
+ * Nodes the given node may be parented under: everything except itself and
+ * its own descendants (which would create a cycle).
+ */
+function ParentOptions(nodes: GraphNode[], nodeId: string): GraphNode[] {
+  const excluded = new Set(SubtreeIds(nodes, nodeId));
+  return nodes.filter(node => !excluded.has(node.id));
+}
+
 /** Action row shown while the card is selected: Edit, Agent, Code, Delete. */
 function renderActionRow(
   node: GraphNode,
-  editing: boolean,
   showOutput: boolean,
   setEditing: (editing: boolean) => void,
   setShowOutput: (show: boolean) => void,
   props: NodeCardProps,
 ) {
-  if (editing) {
-    return null;
-  }
   const running = node.agentStatus === "running";
   return (
     <div style={{ display: "flex", gap: 3, marginTop: 8, flexWrap: "wrap" }}>

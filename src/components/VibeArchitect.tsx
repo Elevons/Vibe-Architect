@@ -1,20 +1,19 @@
 import { useMemo, useRef, useState } from "react";
-import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
+import type { Dispatch, MouseEvent as ReactMouseEvent, ReactElement, SetStateAction } from "react";
 import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
 import { RunAgent } from "../lib/agent";
-import { FONT, GROUP_CARD_H, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
-import { EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
+import { DEMO_EDGES, DEMO_NODES, FONT, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
+import { DescendantBounds, EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
 import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
-import { AutoGroupFromNodes, DagLayout } from "../lib/layout";
-import type { Bounds, GraphEdge, GraphGroup, GraphNode, GraphSnapshot, NodeType, Point, RunMode } from "../lib/types";
+import { DagLayout } from "../lib/layout";
+import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
+import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeType, Point, RunMode } from "../lib/types";
 import { EdgeLabel } from "./EdgeLabel";
-import { GroupCard } from "./GroupCard";
 import { Minimap } from "./Minimap";
 import { NodeCard } from "./NodeCard";
-import { GroupModal } from "./modals/GroupModal";
 import { IngestModal } from "./modals/IngestModal";
 import { PromptModal } from "./modals/PromptModal";
 import { SaveLoadModal } from "./modals/SaveLoadModal";
@@ -22,23 +21,20 @@ import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 
 /**
- * The main canvas: a pannable, zoomable node graph of software
- * architecture, with per-node code generation, groups, ingestion, and
- * save/load.
+ * The main canvas: a pannable, zoomable scene graph of software
+ * architecture. Every node is a tree object that can be shown/hidden and,
+ * when it has children, collapsed into a compact card.
  */
 
 export function VibeArchitect() {
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
-  const [groups, setGroups] = useState<GraphGroup[]>([]);
+  const [nodes, setNodes] = useState<GraphNode[]>(DEMO_NODES);
+  const [edges, setEdges] = useState<GraphEdge[]>(DEMO_EDGES);
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<RunMode>("parallel");
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [focusGroup, setFocusGroup] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
-  const [showGroups, setShowGroups] = useState(false);
   const [showIngest, setShowIngest] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -54,11 +50,11 @@ export function VibeArchitect() {
   };
 
   const { panning, mousePos, edgeDraft, canvasMouseDown, handleDragStart, handleStartEdge, handleEndEdge } =
-    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setSelected, setFocusGroup, updateNode, addEdge });
+    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setSelected, updateNode, addEdge });
   useWheelZoom(canvasRef, pan, zoom, setPan, setZoom);
 
-  const nodeMap = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
-  const groupsById = useMemo(() => new Map(groups.map(group => [group.id, group])), [groups]);
+  const nodeMap = useMemo(() => BuildNodeMap(nodes), [nodes]);
+  const rendered = useMemo(() => ComputeRenderedSet(nodes), [nodes]);
 
   const addNode = (type: NodeType = "file"): void => {
     const id = CreateUniqueId("n");
@@ -69,15 +65,18 @@ export function VibeArchitect() {
     const defaults = NodeDefaults(type);
     setNodes(prev => [...prev, {
       id, x: worldX, y: worldY, name: defaults.name, desc: defaults.desc,
-      path: "", type, group: null, agentOutput: null, agentStatus: "idle",
+      path: "", type, parentId: null, visible: true, collapsed: false,
+      agentOutput: null, agentStatus: "idle",
     }]);
     setSelected(id);
   };
 
+  /** Delete a node, its whole subtree, and every edge touching them. */
   const deleteNode = (id: string): void => {
-    setNodes(prev => prev.filter(node => node.id !== id));
-    setEdges(prev => prev.filter(edge => edge.from !== id && edge.to !== id));
-    if (selected === id) {
+    const removed = new Set(SubtreeIds(nodes, id));
+    setNodes(prev => prev.filter(node => !removed.has(node.id)));
+    setEdges(prev => prev.filter(edge => !removed.has(edge.from) && !removed.has(edge.to)));
+    if (selected !== null && removed.has(selected)) {
       setSelected(null);
     }
   };
@@ -90,32 +89,28 @@ export function VibeArchitect() {
     setEdges(prev => prev.filter(edge => edge.id !== edgeId));
   };
 
-  const addGroup = (name: string): void => {
-    setGroups(prev => [...prev, { id: CreateUniqueId("g"), name }]);
+  // ── Scene-graph operations ──
+  const toggleCollapse = (id: string): void => {
+    setNodes(prev => prev.map(node => (node.id === id ? { ...node, collapsed: !node.collapsed } : node)));
   };
 
-  const deleteGroup = (groupId: string): void => {
-    setGroups(prev => prev.filter(group => group.id !== groupId));
-    setNodes(prev => prev.map(node => (node.group === groupId ? { ...node, group: null } : node)));
+  const setVisible = (id: string, visible: boolean): void => {
+    setNodes(prev => prev.map(node => (node.id === id ? { ...node, visible } : node)));
   };
 
-  // ── Selection / focus ──
+  const setParent = (id: string, parentId: string | null): void => {
+    setNodes(prev => SetParent(prev, id, parentId));
+  };
+
+  /** Collapse/expand every node that has children. */
+  const setAllCollapsed = (collapsed: boolean): void => {
+    const parentIds = new Set(nodes.filter(node => DescendantCount(nodes, node.id) > 0).map(node => node.id));
+    setNodes(prev => prev.map(node => (parentIds.has(node.id) ? { ...node, collapsed } : node)));
+  };
+
+  // ── Selection ──
   const handleSelect = (id: string): void => {
     setSelected(id);
-    const node = nodes.find(entry => entry.id === id);
-    if (node === undefined) {
-      return;
-    }
-    // Selecting a folder focuses the group it belongs to (or matches by name).
-    if (node.type === "folder" && node.group !== null) {
-      setFocusGroup(node.group);
-    } else if (node.type === "folder") {
-      const folderName = node.name.replace(/\/$/, "");
-      const match = groups.find(group => group.name === folderName);
-      setFocusGroup(match !== undefined ? match.id : null);
-    } else if (focusGroup !== null && node.group !== focusGroup) {
-      setFocusGroup(null);
-    }
   };
 
   // ── Agent ──
@@ -169,22 +164,6 @@ export function VibeArchitect() {
     setPan({ x: 0, y: 0 });
   };
 
-  // ── Group collapse ──
-  const isHidden = (node: GraphNode): boolean => {
-    if (node.group === null) {
-      return false;
-    }
-    return groupsById.get(node.group)?.collapsed === true;
-  };
-
-  const toggleGroup = (groupId: string): void => {
-    setGroups(prev => prev.map(group => (group.id === groupId ? { ...group, collapsed: !group.collapsed } : group)));
-  };
-
-  const setAllCollapsed = (collapsed: boolean): void => {
-    setGroups(prev => prev.map(group => ({ ...group, collapsed })));
-  };
-
   // ── Fit / tidy ──
   const fitBounds = (bounds: Bounds): void => {
     const newZoom = Math.min(canvasSize.width / bounds.w, canvasSize.height / bounds.h, 2) * 0.85;
@@ -196,25 +175,21 @@ export function VibeArchitect() {
   };
 
   const fitToView = (): void => {
-    if (nodes.length > 0 || groups.length > 0) {
-      fitBounds(VisibleBounds(nodes, groups));
+    if (nodes.length > 0) {
+      fitBounds(VisibleBounds(nodes, rendered));
     }
   };
 
   const handleTidy = (): void => {
-    const { groups: withGroups, nodes: groupedNodes } = AutoGroupFromNodes(nodes, groups);
-    // Default new groups to collapsed; keep existing collapse state.
-    const normalized = withGroups.map(group => ({ collapsed: true, ...group }));
-    const { nodes: laidNodes, groups: laidGroups } = DagLayout(groupedNodes, edges, normalized);
+    const { nodes: laidNodes } = DagLayout(nodes, edges);
     setNodes(laidNodes);
-    setGroups(laidGroups);
-    setTimeout(() => fitBounds(VisibleBounds(laidNodes, laidGroups)), 50);
+    setTimeout(() => fitBounds(VisibleBounds(laidNodes, ComputeRenderedSet(laidNodes))), 50);
   };
 
   // ── Save / load / ingest ──
   const getCurrentState = (): GraphSnapshot => ({
     nodes: nodes.map(({ agentOutput, agentStatus, ...rest }) => ({ ...rest, agentOutput, agentStatus: "idle" as const })),
-    edges, groups, mode,
+    edges, mode,
   });
 
   const handleLoad = (data: GraphSnapshot): void => {
@@ -224,9 +199,6 @@ export function VibeArchitect() {
     if (data.edges !== undefined) {
       setEdges(data.edges);
     }
-    if (data.groups !== undefined) {
-      setGroups(data.groups);
-    }
     if (data.mode !== undefined) {
       setMode(data.mode);
     }
@@ -235,13 +207,11 @@ export function VibeArchitect() {
     setSelected(null);
   };
 
-  const handleIngest = (newNodes: GraphNode[], newEdges: GraphEdge[], newGroups: GraphGroup[]): void => {
+  const handleIngest = (newNodes: GraphNode[], newEdges: GraphEdge[]): void => {
     setNodes(newNodes);
     setEdges(newEdges);
-    setGroups(newGroups);
     setSelected(null);
-    setFocusGroup(null);
-    setTimeout(() => fitBounds(VisibleBounds(newNodes, newGroups)), 100);
+    setTimeout(() => fitBounds(VisibleBounds(newNodes, ComputeRenderedSet(newNodes))), 100);
   };
 
   // ── Render ──
@@ -261,7 +231,6 @@ export function VibeArchitect() {
         nodeCount={nodes.length}
         edgeCount={edges.length}
         onAddNode={addNode}
-        onShowGroups={() => setShowGroups(true)}
         onSetMode={setMode}
         onZoomIn={() => zoomAboutCenter(1.25)}
         onZoomOut={() => zoomAboutCenter(1 / 1.25)}
@@ -291,12 +260,12 @@ export function VibeArchitect() {
           pointerEvents: "none",
         }} />
 
-        {/* Scaled world layer: group backgrounds */}
+        {/* Scaled world layer: parent backgrounds */}
         <div style={{
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, pointerEvents: "none",
         }}>
-          {renderGroupBackgrounds(groups, nodes, focusGroup)}
+          {renderParentBackgrounds(nodes, rendered)}
         </div>
 
         {/* SVG edges (scaled) */}
@@ -307,18 +276,17 @@ export function VibeArchitect() {
             </marker>
           </defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            {renderEdges(edges, nodeMap, groupsById, focusGroup, isHidden, zoom, updateEdgeLabel, deleteEdge)}
+            {renderEdges(edges, nodeMap, rendered, zoom, updateEdgeLabel, deleteEdge)}
             {renderEdgeDraft(edgeDraft, rect, nodeMap, mousePos, pan, zoom)}
           </g>
         </svg>
 
-        {/* Nodes + group cards (scaled) */}
+        {/* Nodes (scaled) */}
         <div style={{
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
         }}>
-          {renderGroupCards(groups, nodes, focusGroup, toggleGroup, gid => setFocusGroup(gid === focusGroup ? null : gid))}
-          {renderNodes(nodes, isHidden, focusGroup, groups, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom)}
+          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent)}
         </div>
 
         {nodes.length === 0 && (
@@ -327,14 +295,23 @@ export function VibeArchitect() {
           </div>
         )}
 
-        {renderMinimap(nodes, edges, groups, isHidden, pan, zoom, canvasSize, setPan)}
+        <Minimap
+          nodes={nodes}
+          edges={edges}
+          nodeMap={nodeMap}
+          rendered={rendered}
+          pan={pan}
+          zoom={zoom}
+          canvasW={canvasSize.width}
+          canvasH={canvasSize.height}
+          onPanTo={(x, y) => setPan({ x, y })}
+        />
       </div>
 
       <StatusBar />
 
-      {showPrompt && <PromptModal nodes={nodes} edges={edges} groups={groups} mode={mode} onClose={() => setShowPrompt(false)} />}
+      {showPrompt && <PromptModal nodes={nodes} edges={edges} mode={mode} onClose={() => setShowPrompt(false)} />}
       {showSaveLoad && <SaveLoadModal onClose={() => setShowSaveLoad(false)} onLoad={handleLoad} currentState={getCurrentState()} />}
-      {showGroups && <GroupModal groups={groups} onClose={() => setShowGroups(false)} onAdd={addGroup} onDelete={deleteGroup} />}
       {showIngest && <IngestModal onClose={() => setShowIngest(false)} onIngest={handleIngest} />}
     </div>
   );
@@ -358,98 +335,84 @@ function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promi
   }));
 }
 
-/** Dashed fill behind each expanded group, sized to its members. */
-function renderGroupBackgrounds(groups: GraphGroup[], nodes: GraphNode[], focusGroup: string | null) {
-  return groups.map((group, groupIndex) => {
-    if (group.collapsed) {
-      return null;
+/** Dashed fill behind each rendered parent, sized to its rendered children. */
+function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>): ReactElement[] {
+  const childrenMap = BuildChildrenMap(nodes);
+  const backgrounds: ReactElement[] = [];
+  let colorIndex = 0;
+  for (const node of nodes) {
+    if (!rendered.has(node.id)) {
+      continue;
     }
-    const members = nodes.filter(node => node.group === group.id);
-    const points = [
-      { x: group.x ?? 60, y: group.y ?? 60, height: GROUP_CARD_H },
-      ...members.map(node => ({ x: node.x, y: node.y, height: NODE_H })),
-    ];
-    const x1 = Math.min(...points.map(point => point.x)) - 14;
-    const y1 = Math.min(...points.map(point => point.y)) - 14;
-    const x2 = Math.max(...points.map(point => point.x)) + NODE_W + 14;
-    const y2 = Math.max(...points.map(point => point.y + point.height)) + 14;
-    const color = GROUP_COLORS[groupIndex % GROUP_COLORS.length];
-    const dimmed = focusGroup !== null && group.id !== focusGroup;
-    return (
+    if (!HasRenderedChild(childrenMap, node.id, rendered)) {
+      continue;
+    }
+    const bounds = DescendantBounds(nodes, node.id, rendered, 14);
+    if (bounds === null) {
+      continue;
+    }
+    const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length];
+    colorIndex += 1;
+    backgrounds.push(
       <div
-        key={group.id}
+        key={node.id}
         style={{
-          position: "absolute", left: x1, top: y1, width: x2 - x1, height: y2 - y1,
+          position: "absolute", left: bounds.x, top: bounds.y, width: bounds.w, height: bounds.h,
           background: color, border: `1px dashed ${color.replace("30", "70")}`,
-          borderRadius: 10, pointerEvents: "none", opacity: dimmed ? 0.15 : 1, transition: "opacity 0.2s",
+          borderRadius: 10, pointerEvents: "none",
         }}
-      />
+      />,
     );
-  });
+  }
+  return backgrounds;
 }
 
-/** All visible edges: deduped, rerouted around collapsed groups. */
+/** True when the node has at least one rendered direct child. */
+function HasRenderedChild(
+  childrenMap: Map<string, string[]>,
+  nodeId: string,
+  rendered: Set<string>,
+): boolean {
+  return (childrenMap.get(nodeId) ?? []).some(id => rendered.has(id));
+}
+
+/** Edges whose endpoints are both rendered. */
 function renderEdges(
   edges: GraphEdge[],
   nodeMap: Map<string, GraphNode>,
-  groupsById: Map<string, GraphGroup>,
-  focusGroup: string | null,
-  isHidden: (node: GraphNode) => boolean,
+  rendered: Set<string>,
   zoom: number,
   updateEdgeLabel: (edgeId: string, label: string) => void,
   deleteEdge: (edgeId: string) => void,
 ) {
-  const seen = new Set<string>();
   return edges.map(edge => {
     const from = nodeMap.get(edge.from);
     const to = nodeMap.get(edge.to);
     if (from === undefined || to === undefined) {
       return null;
     }
-    const fromHidden = isHidden(from);
-    const toHidden = isHidden(to);
-    // Edge entirely inside one collapsed group: skip.
-    if (fromHidden && toHidden && from.group === to.group) {
+    if (!rendered.has(edge.from) || !rendered.has(edge.to)) {
       return null;
     }
-    // Dedupe collapsed-endpoint edges.
-    const fromKey = fromHidden ? `g:${from.group}` : `n:${from.id}`;
-    const toKey = toHidden ? `g:${to.group}` : `n:${to.id}`;
-    const dedupeKey = `${fromKey}→${toKey}`;
-    if (seen.has(dedupeKey)) {
-      return null;
-    }
-    seen.add(dedupeKey);
-
-    const fromGroup = fromHidden ? groupsById.get(from.group ?? "") ?? null : null;
-    const toGroup = toHidden ? groupsById.get(to.group ?? "") ?? null : null;
-    const pointA = fromGroup !== null
-      ? { x: (fromGroup.x ?? 0) + NODE_W, y: (fromGroup.y ?? 0) + GROUP_CARD_H / 2 }
-      : PortOut(from);
-    const pointB = toGroup !== null
-      ? { x: toGroup.x ?? 0, y: (toGroup.y ?? 0) + GROUP_CARD_H / 2 }
-      : PortIn(to);
+    const pointA = PortOut(from);
+    const pointB = PortIn(to);
     const path = EdgePathFromPoints(pointA, pointB);
     const mid = { x: (pointA.x + pointB.x) / 2, y: (pointA.y + pointB.y) / 2 };
-    const dimmed = focusGroup !== null && from.group !== focusGroup && to.group !== focusGroup;
-
     return (
-      <g key={edge.id} opacity={dimmed ? 0.08 : 1} style={{ transition: "opacity 0.2s" }}>
+      <g key={edge.id}>
         <path d={path} stroke="#333" strokeWidth={2 / zoom} fill="none" markerEnd="url(#ah)" />
         <path
           d={path}
           stroke="transparent"
           strokeWidth={Math.max(12, 16 / zoom)}
           fill="none"
-          style={{ pointerEvents: dimmed ? "none" : "stroke", cursor: "pointer" }}
+          style={{ pointerEvents: "stroke", cursor: "pointer" }}
           onMouseDown={event => event.stopPropagation()}
           onClick={event => { event.stopPropagation(); deleteEdge(edge.id); }}
         >
           <title>Click to remove</title>
         </path>
-        {!fromHidden && !toHidden && (
-          <EdgeLabel edge={edge} pos={{ x: mid.x, y: mid.y - 8 }} onUpdate={updateEdgeLabel} zoom={zoom} />
-        )}
+        <EdgeLabel edge={edge} pos={{ x: mid.x, y: mid.y - 8 }} onUpdate={updateEdgeLabel} zoom={zoom} />
       </g>
     );
   });
@@ -487,40 +450,10 @@ function renderEdgeDraft(
   );
 }
 
-/** Collapsed group cards, positioned by layout. */
-function renderGroupCards(
-  groups: GraphGroup[],
-  nodes: GraphNode[],
-  focusGroup: string | null,
-  toggleGroup: (id: string) => void,
-  onFocusGroup: (id: string) => void,
-) {
-  return groups.map((group, groupIndex) => {
-    if (group.x === null || group.x === undefined) {
-      return null;
-    }
-    const dimmed = focusGroup !== null && group.id !== focusGroup;
-    const count = nodes.filter(node => node.group === group.id).length;
-    return (
-      <GroupCard
-        key={group.id}
-        group={group}
-        count={count}
-        colorIdx={groupIndex}
-        dimmed={dimmed}
-        onToggle={toggleGroup}
-        onFocus={onFocusGroup}
-      />
-    );
-  });
-}
-
-/** All visible nodes, dimmed when another group is focused. */
+/** All rendered nodes as cards. */
 function renderNodes(
   nodes: GraphNode[],
-  isHidden: (node: GraphNode) => boolean,
-  focusGroup: string | null,
-  groups: GraphGroup[],
+  rendered: Set<string>,
   selected: string | null,
   handleSelect: (id: string) => void,
   handleDragStart: (event: ReactMouseEvent, id: string) => void,
@@ -530,63 +463,27 @@ function renderNodes(
   handleEndEdge: (id: string) => void,
   handleRunAgent: (id: string) => void,
   zoom: number,
+  toggleCollapse: (id: string) => void,
+  setVisible: (id: string, visible: boolean) => void,
+  setParent: (id: string, parentId: string | null) => void,
 ) {
-  return nodes.map(node => {
-    if (isHidden(node)) {
-      return null;
-    }
-    const dimmed = focusGroup !== null
-      && node.group !== focusGroup
-      && !(node.type === "folder" && groups.find(group => group.id === focusGroup)?.name === (node.name ?? "").replace(/\/$/, ""));
-    return (
-      <div key={node.id} style={{ opacity: dimmed ? 0.12 : 1, transition: "opacity 0.2s", pointerEvents: dimmed ? "none" : "auto" }}>
-        <NodeCard
-          node={node}
-          selected={selected === node.id}
-          groups={groups}
-          zoom={zoom}
-          onSelect={handleSelect}
-          onDragStart={handleDragStart}
-          onUpdate={updateNode}
-          onDelete={deleteNode}
-          onStartEdge={handleStartEdge}
-          onEndEdge={handleEndEdge}
-          onRunAgent={id => void handleRunAgent(id)}
-        />
-      </div>
-    );
-  });
-}
-
-/** Minimap fed with visible nodes plus collapsed group cards. */
-function renderMinimap(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  groups: GraphGroup[],
-  isHidden: (node: GraphNode) => boolean,
-  pan: Point,
-  zoom: number,
-  canvasSize: { width: number; height: number },
-  setPan: (pan: Point) => void,
-) {
-  const miniNodes: GraphNode[] = [
-    ...nodes.filter(node => !isHidden(node)),
-    ...groups
-      .filter(group => group.x !== null && group.x !== undefined && group.collapsed)
-      .map(group => ({ id: `gc_${group.id}`, x: group.x as number, y: (group.y as number) || 0, name: "", path: "", desc: "", type: "folder" as const, group: null, agentOutput: null, agentStatus: "idle" as const })),
-  ];
-  const miniMap = new Map(miniNodes.map(node => [node.id, node]));
-  return (
-    <Minimap
-      nodes={miniNodes}
-      edges={edges}
-      nodeMap={miniMap}
-      groups={groups.filter(group => !group.collapsed)}
-      pan={pan}
+  return nodes.filter(node => rendered.has(node.id)).map(node => (
+    <NodeCard
+      key={node.id}
+      node={node}
+      selected={selected === node.id}
+      nodes={nodes}
       zoom={zoom}
-      canvasW={canvasSize.width}
-      canvasH={canvasSize.height}
-      onPanTo={(x, y) => setPan({ x, y })}
+      onSelect={handleSelect}
+      onDragStart={handleDragStart}
+      onUpdate={updateNode}
+      onDelete={deleteNode}
+      onStartEdge={handleStartEdge}
+      onEndEdge={handleEndEdge}
+      onRunAgent={id => void handleRunAgent(id)}
+      onToggleCollapse={toggleCollapse}
+      onSetVisible={setVisible}
+      onSetParent={setParent}
     />
-  );
+  ));
 }

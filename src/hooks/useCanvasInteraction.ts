@@ -24,7 +24,6 @@ interface CanvasInteractionOptions {
   zoom: number;
   setPan: (pan: Point) => void;
   setSelected: (id: string | null) => void;
-  setFocusGroup: (id: string | null) => void;
   updateNode: (id: string, patch: Partial<GraphNode>) => void;
   addEdge: (from: string, to: string) => void;
 }
@@ -41,7 +40,7 @@ export interface CanvasInteraction {
 }
 
 export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasInteraction {
-  const { canvasRef, nodes, edges, pan, zoom, setPan, setSelected, setFocusGroup, updateNode, addEdge } = options;
+  const { canvasRef, nodes, edges, pan, zoom, setPan, setSelected, updateNode, addEdge } = options;
 
   const [panning, setPanning] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -102,7 +101,6 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       element = element.parentElement;
     }
     setSelected(null);
-    setFocusGroup(null);
     setPanning(true);
     panStart.current = { x: event.clientX - pan.x, y: event.clientY - pan.y };
   };
