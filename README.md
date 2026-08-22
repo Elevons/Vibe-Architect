@@ -57,7 +57,7 @@ src/
 │   └── useCanvasInteraction.ts  Drag / pan / edge-draft pointer logic
 └── lib/
     ├── types.ts              Domain types (node, edge, snapshot, …)
-    ├── constants.ts          Dimensions, zoom limits, colors, demo data
+    ├── constants.ts          Dimensions, zoom limits, colors
     ├── ids.ts                Unique id generation
     ├── geometry.ts           Ports, edge curves, coordinate conversion, bounds
     ├── graph.ts              Topological sort
