@@ -46,8 +46,12 @@ export async function ListGraphs(): Promise<string[]> {
 
 /** Delete a saved graph. Returns false when storage is unavailable. */
 export async function DeleteGraph(name: string): Promise<boolean> {
+  const storage = window.storage;
+  if (storage === undefined) {
+    return false;
+  }
   try {
-    await window.storage?.delete(KeyFor(name));
+    await storage.delete(KeyFor(name));
     return true;
   } catch {
     return false;
