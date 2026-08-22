@@ -4,7 +4,7 @@ import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
 import { RunAgent } from "../lib/agent";
-import { DEMO_EDGES, DEMO_NODES, FONT, GROUP_CARD_H, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
+import { FONT, GROUP_CARD_H, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
 import { EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
 import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
@@ -28,8 +28,8 @@ import { Toolbar } from "./Toolbar";
  */
 
 export function VibeArchitect() {
-  const [nodes, setNodes] = useState<GraphNode[]>(DEMO_NODES);
-  const [edges, setEdges] = useState<GraphEdge[]>(DEMO_EDGES);
+  const [nodes, setNodes] = useState<GraphNode[]>([]);
+  const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [groups, setGroups] = useState<GraphGroup[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<RunMode>("parallel");
