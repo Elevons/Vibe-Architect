@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
 import { FONT } from "../lib/constants";
+import { useDoubleTap } from "../hooks/useDoubleTap";
 import type { GraphEdge, Point } from "../lib/types";
 
 /**
  * Floating label on an edge, rendered inside the world SVG. Double-click
- * renames it inline; Enter or blur commits, Escape cancels.
+ * (or double-tap) renames it inline; Enter or blur commits, Escape cancels.
  */
 
 interface EdgeLabelProps {
@@ -25,6 +25,9 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
   }, [edge.label]);
 
   const fontSize = Math.max(8, 10 / Math.max(zoom, 0.5));
+
+  const beginEdit = () => setEditing(true);
+  const doubleTap = useDoubleTap(beginEdit);
 
   const commit = (): void => {
     onUpdate(edge.id, value);
@@ -57,11 +60,6 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
     );
   }
 
-  const beginEdit = (event: ReactMouseEvent): void => {
-    event.stopPropagation();
-    setEditing(true);
-  };
-
   return (
     <text
       x={pos.x}
@@ -70,7 +68,9 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
       fill="#667"
       fontSize={fontSize}
       fontFamily={FONT}
-      style={{ cursor: "pointer", pointerEvents: "auto" }}
+      style={{ cursor: "pointer", pointerEvents: "auto", touchAction: "none" }}
+      onPointerDown={event => { event.stopPropagation(); doubleTap.handlePointerDown(event); }}
+      onPointerUp={doubleTap.handlePointerUp}
       onDoubleClick={beginEdit}
     >
       {edge.label || "···"}

@@ -18,6 +18,7 @@ interface ModalShellProps {
 export function ModalShell({ title, maxWidth, gap = 16, maxHeight, onClose, children }: ModalShellProps) {
   return (
     <div
+      className="va-modal-backdrop"
       style={{
         position: "fixed", inset: 0, background: "#000c", zIndex: 1000,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
@@ -25,6 +26,7 @@ export function ModalShell({ title, maxWidth, gap = 16, maxHeight, onClose, chil
       onClick={onClose}
     >
       <div
+        className="va-modal-panel"
         onClick={event => event.stopPropagation()}
         style={{
           background: "#151518", border: "1px solid #333", borderRadius: 10, padding: 24,

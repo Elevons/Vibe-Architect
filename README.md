@@ -30,6 +30,7 @@ npm run typecheck  # tsc --noEmit only
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
 - **Export Prompt** — serialize the graph to markdown (including the structure tree) and copy it to the clipboard
+- **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-connect edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
 
 ## Project structure
 
@@ -68,7 +69,28 @@ src/
     ├── agent.ts              Per-node code generation + file description
     ├── ingest.ts             Import parsing, import resolution, folder parenting, graph build
     └── prompt.ts             Architecture prompt builder
+
+test/
+├── mobile.test.html          Headless touch-gesture test harness
+├── mobile.test.tsx           Drives the app with synthetic touch PointerEvents
+├── layout.test.html          Layout metrics probe (mobile + desktop)
+└── layout.test.tsx           Reports toolbar/targets/minimap/root metrics
 ```
+
+## Mobile gesture tests
+
+The gesture layer (pan, pinch, drag, double-tap, edge drag, collapse) is
+tested end-to-end against the real app with headless Chrome:
+
+```bash
+npm run dev -- --port 4175 &
+google-chrome --headless --disable-gpu --window-size=390,844 \
+  --virtual-time-budget=20000 --dump-dom \
+  http://localhost:4175/test/mobile.test.html | grep -E "PASS|FAIL"
+```
+
+All gestures are reported as PASS/FAIL lines; the page title is `ALL PASS`
+when everything works.
 
 ## Notes
 

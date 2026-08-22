@@ -56,9 +56,10 @@ export function Minimap({ nodes, edges, nodeMap, rendered, pan, zoom, canvasW, c
 
   return (
     <div
+      className="va-minimap"
       data-nodecard="true"
       onClick={handleClick}
-      onMouseDown={event => event.stopPropagation()}
+      onPointerDown={event => event.stopPropagation()}
       style={{
         position: "absolute", bottom: 12, right: 12, width: MINIMAP_W, height: MINIMAP_H,
         background: "#0d0d10e8", border: "1px solid #2a2a2f", borderRadius: 8,

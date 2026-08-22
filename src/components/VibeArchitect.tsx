@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import type { Dispatch, MouseEvent as ReactMouseEvent, ReactElement, SetStateAction } from "react";
+import type { Dispatch, PointerEvent as ReactPointerEvent, ReactElement, SetStateAction } from "react";
 import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
@@ -49,8 +49,8 @@ export function VibeArchitect() {
     setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
   };
 
-  const { panning, mousePos, edgeDraft, canvasMouseDown, handleDragStart, handleStartEdge, handleEndEdge } =
-    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setSelected, updateNode, addEdge });
+  const { panning, pointerPos, edgeDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge } =
+    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, addEdge });
   useWheelZoom(canvasRef, pan, zoom, setPan, setZoom);
 
   const nodeMap = useMemo(() => BuildNodeMap(nodes), [nodes]);
@@ -219,11 +219,11 @@ export function VibeArchitect() {
   const gridSize = 24 * zoom;
 
   return (
-    <div style={{
+    <div className="va-root" style={{
       width: "100%", height: "100vh", background: "#0c0c0f", display: "flex",
       flexDirection: "column", fontFamily: FONT, overflow: "hidden",
     }}>
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}${ResponsiveCss}`}</style>
 
       <Toolbar
         mode={mode}
@@ -246,8 +246,8 @@ export function VibeArchitect() {
 
       <div
         ref={canvasRef}
-        onMouseDown={canvasMouseDown}
-        style={{ flex: 1, position: "relative", overflow: "hidden", cursor: panning ? "grabbing" : "default" }}
+        onPointerDown={canvasPointerDown}
+        style={{ flex: 1, position: "relative", overflow: "hidden", cursor: panning ? "grabbing" : "default", touchAction: "none" }}
       >
         {/* Pan hit-area — catches all clicks on empty canvas */}
         <div data-pan="true" style={{ position: "absolute", inset: 0, zIndex: 0 }} />
@@ -277,7 +277,7 @@ export function VibeArchitect() {
           </defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             {renderEdges(edges, nodeMap, rendered, zoom, updateEdgeLabel, deleteEdge)}
-            {renderEdgeDraft(edgeDraft, rect, nodeMap, mousePos, pan, zoom)}
+            {renderEdgeDraft(edgeDraft, rect, nodeMap, pointerPos, pan, zoom)}
           </g>
         </svg>
 
@@ -316,6 +316,49 @@ export function VibeArchitect() {
     </div>
   );
 }
+
+/**
+ * Responsive rules for phones and small tablets: scrollable toolbar with
+ * bigger touch targets, scrollable status hints, a scaled-down minimap,
+ * compact modals, dynamic viewport height, and safe-area insets.
+ */
+const ResponsiveCss = `
+button { -webkit-tap-highlight-color: transparent; }
+svg text { user-select: none; -webkit-user-select: none; }
+@supports (height: 100dvh) {
+  .va-root { height: 100dvh !important; }
+}
+@media (max-width: 900px) {
+  .va-toolbar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 6px !important;
+    padding: 6px 10px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .va-toolbar::-webkit-scrollbar { display: none; }
+  .va-toolbar button { min-height: 34px; }
+  .va-brand { white-space: nowrap; }
+  .va-spacer { display: none; }
+  .va-counts { white-space: nowrap; }
+}
+@media (max-width: 700px) {
+  .va-status {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    scrollbar-width: none;
+  }
+  .va-status::-webkit-scrollbar { display: none; }
+  .va-status span { white-space: nowrap; }
+  .va-minimap { transform: scale(0.7); transform-origin: bottom right; }
+  .va-modal-backdrop { padding: 10px !important; }
+  .va-modal-panel { padding: 14px !important; }
+  .va-toolbar { padding-top: calc(6px + env(safe-area-inset-top)) !important; }
+  .va-status { padding-bottom: calc(4px + env(safe-area-inset-bottom)) !important; }
+}
+`;
 
 /** Default name/desc for a freshly created node. */
 function NodeDefaults(type: NodeType): { name: string; desc: string } {
@@ -406,8 +449,8 @@ function renderEdges(
           stroke="transparent"
           strokeWidth={Math.max(12, 16 / zoom)}
           fill="none"
-          style={{ pointerEvents: "stroke", cursor: "pointer" }}
-          onMouseDown={event => event.stopPropagation()}
+          style={{ pointerEvents: "stroke", cursor: "pointer", touchAction: "none" }}
+          onPointerDown={event => event.stopPropagation()}
           onClick={event => { event.stopPropagation(); deleteEdge(edge.id); }}
         >
           <title>Click to remove</title>
@@ -456,10 +499,10 @@ function renderNodes(
   rendered: Set<string>,
   selected: string | null,
   handleSelect: (id: string) => void,
-  handleDragStart: (event: ReactMouseEvent, id: string) => void,
+  handleDragStart: (event: ReactPointerEvent, id: string) => void,
   updateNode: (id: string, patch: Partial<GraphNode>) => void,
   deleteNode: (id: string) => void,
-  handleStartEdge: (id: string, event: ReactMouseEvent) => void,
+  handleStartEdge: (id: string, event: ReactPointerEvent) => void,
   handleEndEdge: (id: string) => void,
   handleRunAgent: (id: string) => void,
   zoom: number,

@@ -28,11 +28,11 @@ interface ToolbarProps {
 
 export function Toolbar(props: ToolbarProps) {
   return (
-    <div style={{
+    <div className="va-toolbar" style={{
       display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
       background: "#111114", borderBottom: "1px solid #222", flexShrink: 0, flexWrap: "wrap",
     }}>
-      <span style={{ color: "#818cf8", fontWeight: 700, fontSize: 14, letterSpacing: "-0.03em", marginRight: 6 }}>
+      <span className="va-brand" style={{ color: "#818cf8", fontWeight: 700, fontSize: 14, letterSpacing: "-0.03em", marginRight: 6 }}>
         ⬡ vibe-architect
       </span>
       <div style={{ width: 1, height: 18, background: "#333" }} />
@@ -45,8 +45,8 @@ export function Toolbar(props: ToolbarProps) {
       <Btn onClick={props.onTidy} style={{ fontSize: 10, padding: "4px 8px", background: "#22d3ee18", color: "#22d3ee", borderColor: "#22d3ee30" }}>Tidy</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(false)} style={{ fontSize: 10, padding: "4px 8px" }}>Expand All</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(true)} style={{ fontSize: 10, padding: "4px 8px" }}>Collapse All</Btn>
-      <div style={{ flex: 1 }} />
-      <span style={{ color: "#555", fontSize: 10 }}>{props.nodeCount}n · {props.edgeCount}e</span>
+      <div className="va-spacer" style={{ flex: 1 }} />
+      <span className="va-counts" style={{ color: "#555", fontSize: 10 }}>{props.nodeCount}n · {props.edgeCount}e</span>
       <Btn onClick={props.onRunAll} style={{ background: "#4ade8018", color: "#4ade80", borderColor: "#4ade8030", fontSize: 11, padding: "4px 10px" }}>▶ Run All</Btn>
       <Btn onClick={props.onShowSaveLoad} style={{ fontSize: 11, padding: "4px 10px" }}>💾 Save/Load</Btn>
       <Btn onClick={props.onShowIngest} style={{ fontSize: 11, padding: "4px 10px", background: "#f472b618", color: "#f472b6", borderColor: "#f472b630" }}>📂 Ingest</Btn>
