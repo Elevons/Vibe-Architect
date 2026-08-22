@@ -23,7 +23,7 @@ npm run typecheck  # tsc --noEmit only
 - **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
 - **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, auto-groups by directory, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
-- **Save/Load** — persist graphs via the host's `window.storage` (e.g. Tauri); degrades gracefully when unavailable
+- **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker
 - **Export Prompt** — serialize the graph to markdown and copy it to the clipboard
 
 ## Project structure
@@ -59,7 +59,7 @@ src/
     ├── geometry.ts           Ports, edge curves, coordinate conversion, bounds
     ├── graph.ts              Topological sort
     ├── layout.ts             DAG layout, auto-grouping, grid fallback
-    ├── storage.ts            Save/load/list/delete graphs (window.storage)
+    ├── fileStorage.ts        JSON file save/load (download + file picker)
     ├── anthropic.ts          Minimal Anthropic Messages API client
     ├── agent.ts              Per-node code generation + file description
     ├── ingest.ts             Import parsing, import resolution, graph build
@@ -68,7 +68,7 @@ src/
 
 ## Notes
 
-- The app assumes a host that provides `window.storage` for persistence;
-  without it, Save/Load silently no-ops.
+- Saved graphs are plain `.json` files — keep, share, or copy them to
+  another machine and load them there.
 - LLM features call the Anthropic API directly from the browser, so they
   require an environment where that request is allowed.
