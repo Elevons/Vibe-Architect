@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { FONT, GROUP_CARD_H, NODE_W, TYPE_COLORS } from "../lib/constants";
 import { BuildNodeMap, DescendantCount, SubtreeIds } from "../lib/sceneGraph";
@@ -34,6 +35,7 @@ interface NodeCardProps {
   onToggleCollapse: (id: string) => void;
   onSetVisible: (id: string, visible: boolean) => void;
   onSetParent: (id: string, parentId: string | null) => void;
+  onSizeChange: (id: string, width: number, height: number) => void;
 }
 
 /** Tags whose pointerdown must not start a card drag. */
@@ -54,6 +56,36 @@ export function NodeCard(props: NodeCardProps) {
 
   const beginEdit = () => setEditing(true);
   const doubleTap = useDoubleTap(beginEdit);
+
+  // Measure the real card box and report it upward. Cards grow with their
+  // content (description, action row, edit form, agent output), so edges
+  // anchor to the measured port position rather than a default height.
+  // useLayoutEffect reports synchronously (reading offsetHeight forces a
+  // layout flush) on every change that alters the card's height, so edges
+  // are anchored correctly on the very frame the card grows. The
+  // ResizeObserver is a backstop for any other resize.
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const reportSize = (): void => {
+    const element = cardRef.current;
+    if (element !== null) {
+      props.onSizeChange(node.id, element.offsetWidth, element.offsetHeight);
+    }
+  };
+  useLayoutEffect(() => {
+    reportSize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.id, node.collapsed, editing, selected, showOutput, node.agentOutput, props.onSizeChange]);
+  useEffect(() => {
+    const element = cardRef.current;
+    if (element === null) {
+      return;
+    }
+    const observer = new ResizeObserver(reportSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+    // node.collapsed re-renders a different div, re-attaching the ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.id, node.collapsed, props.onSizeChange]);
 
   const colors = TYPE_COLORS[node.type];
   const descendantCount = DescendantCount(nodes, node.id);
@@ -83,11 +115,12 @@ export function NodeCard(props: NodeCardProps) {
   };
 
   if (node.collapsed) {
-    return renderCollapsedCard(node, selected, colors, descendantCount, doubleTap.handlePointerDown, doubleTap.handlePointerUp, props);
+    return renderCollapsedCard(node, selected, colors, descendantCount, doubleTap.handlePointerDown, doubleTap.handlePointerUp, cardRef, props);
   }
 
   return (
     <div
+      ref={cardRef}
       data-nodecard="true"
       onPointerDown={event => { doubleTap.handlePointerDown(event); handlePointerDown(event); }}
       onPointerUp={doubleTap.handlePointerUp}
@@ -125,10 +158,12 @@ function renderCollapsedCard(
   descendantCount: number,
   tapDown: (event: ReactPointerEvent) => void,
   tapUp: (event: ReactPointerEvent) => void,
+  cardRef: RefObject<HTMLDivElement>,
   props: NodeCardProps,
 ) {
   return (
     <div
+      ref={cardRef}
       data-nodecard="true"
       onPointerDown={event => {
         tapDown(event);

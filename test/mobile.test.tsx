@@ -361,6 +361,61 @@ async function run(): Promise<void> {
   const panUnchanged = worldLayer().style.transform === panBefore;
   pass("card button press stays on the card", editFormOpen && stillSelected13 && panUnchanged, `form=${editFormOpen} selected=${stillSelected13} pan=${panUnchanged}`);
 
+  // ── Test 14: edge endpoints land exactly on the measured ports ──
+  // file2's card is expanded with the edit form open (taller than the
+  // default), so the ports sit lower than the fixed-height math would put
+  // them. The measured size reaches the edges via a layout effect → state →
+  // re-render; poll until it settles (a frame or two in the worst case).
+  const transform14 = parseTransform();
+  const canvasBox = canvas.getBoundingClientRect();
+  const toWorld = (screenX: number, screenY: number): { x: number; y: number } => ({
+    x: (screenX - canvasBox.left - transform14.x) / transform14.zoom,
+    y: (screenY - canvasBox.top - transform14.y) / transform14.zoom,
+  });
+  // 5px tolerance: the anchor sits on the card's border-box edge while the
+  // 18px port dot is centred a few px inside (border inset), so the noodle
+  // start is always inside the dot. Still far tighter than the old fixed-
+  // height bug, which was off by tens of px on expanded cards.
+  const TOLERANCE_PX = 5;
+  const measureAnchored = (): { anchored: number; total: number } => {
+    const portCenters: { out: { x: number; y: number }; in: { x: number; y: number } }[] = [];
+    for (const card of nodeCards()) {
+      const outPort = card.querySelector("[title='Drag to connect']") as HTMLElement | null;
+      const inPort = Array.from(card.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement | undefined;
+      if (outPort === null || inPort === undefined) {
+        continue;
+      }
+      const outBox = outPort.getBoundingClientRect();
+      const inBox = inPort.getBoundingClientRect();
+      portCenters.push({
+        out: toWorld(outBox.left + outBox.width / 2, outBox.top + outBox.height / 2),
+        in: toWorld(inBox.left + inBox.width / 2, inBox.top + inBox.height / 2),
+      });
+    }
+    const edgePaths = Array.from(document.querySelectorAll("svg path")).filter(path => path.getAttribute("stroke") === "#333");
+    let anchored = 0;
+    for (const path of edgePaths) {
+      const match = (path.getAttribute("d") ?? "").match(/^M([\d.-]+),([\d.-]+) C[\d.-]+,[\d.-]+ [\d.-]+,[\d.-]+ ([\d.-]+),([\d.-]+)$/);
+      if (match === null) {
+        continue;
+      }
+      const start = { x: Number(match[1]), y: Number(match[2]) };
+      const end = { x: Number(match[3]), y: Number(match[4]) };
+      const startsOnPort = portCenters.some(port => Math.hypot(port.out.x - start.x, port.out.y - start.y) < TOLERANCE_PX);
+      const endsOnPort = portCenters.some(port => Math.hypot(port.in.x - end.x, port.in.y - end.y) < TOLERANCE_PX);
+      if (startsOnPort && endsOnPort) {
+        anchored += 1;
+      }
+    }
+    return { anchored, total: edgePaths.length };
+  };
+  let measurement = measureAnchored();
+  for (let attempt = 0; attempt < 25 && (measurement.anchored < measurement.total || measurement.total === 0); attempt++) {
+    await nextFrame();
+    measurement = measureAnchored();
+  }
+  pass("edges anchor to measured ports", measurement.total === 2 && measurement.anchored === 2, `anchored ${measurement.anchored}/${measurement.total}`);
+
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");
   document.title = results.every(line => line.startsWith("PASS")) ? "ALL PASS" : "FAILURES";

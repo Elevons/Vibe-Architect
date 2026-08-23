@@ -1,8 +1,8 @@
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { FONT, GROUP_COLORS, MINIMAP_H, MINIMAP_W, NODE_H, NODE_W, TYPE_COLORS } from "../lib/constants";
-import { DescendantBounds, WorldBounds } from "../lib/geometry";
+import { DescendantBounds, PortIn, PortOut, WorldBounds } from "../lib/geometry";
 import { BuildChildrenMap } from "../lib/sceneGraph";
-import type { GraphEdge, GraphNode, Point } from "../lib/types";
+import type { GraphEdge, GraphNode, NodeSize, Point } from "../lib/types";
 
 /**
  * Bottom-right overview map: parent fills, edge lines, node rectangles, and
@@ -13,6 +13,7 @@ interface MinimapProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
   nodeMap: Map<string, GraphNode>;
+  nodeSizes: Record<string, NodeSize>;
   rendered: Set<string>;
   pan: Point;
   zoom: number;
@@ -25,8 +26,8 @@ const MINIMAP_PAD = 40;
 const DEFAULT_CANVAS_W = 800;
 const DEFAULT_CANVAS_H = 600;
 
-export function Minimap({ nodes, edges, nodeMap, rendered, pan, zoom, canvasW, canvasH, onPanTo }: MinimapProps) {
-  const world = WorldBounds(nodes);
+export function Minimap({ nodes, edges, nodeMap, nodeSizes, rendered, pan, zoom, canvasW, canvasH, onPanTo }: MinimapProps) {
+  const world = WorldBounds(nodes, nodeSizes);
   const width = Math.max(world.w, (canvasW || DEFAULT_CANVAS_W) / zoom) + MINIMAP_PAD * 2;
   const height = Math.max(world.h, (canvasH || DEFAULT_CANVAS_H) / zoom) + MINIMAP_PAD * 2;
   const originX = Math.min(world.x, -pan.x / zoom) - MINIMAP_PAD;
@@ -67,9 +68,9 @@ export function Minimap({ nodes, edges, nodeMap, rendered, pan, zoom, canvasW, c
       }}
     >
       <svg width={MINIMAP_W} height={MINIMAP_H}>
-        {renderParentRects(nodes, rendered, toMini, scale)}
-        {renderEdgeLines(edges, nodeMap, toMini)}
-        {renderNodeRects(nodes, rendered, toMini, scale)}
+        {renderParentRects(nodes, rendered, nodeSizes, toMini, scale)}
+        {renderEdgeLines(edges, nodeMap, nodeSizes, toMini)}
+        {renderNodeRects(nodes, rendered, nodeSizes, toMini, scale)}
         <rect
           x={viewportMini.x}
           y={viewportMini.y}
@@ -94,6 +95,7 @@ export function Minimap({ nodes, edges, nodeMap, rendered, pan, zoom, canvasW, c
 function renderParentRects(
   nodes: GraphNode[],
   rendered: Set<string>,
+  nodeSizes: Record<string, NodeSize>,
   toMini: (x: number, y: number) => Point,
   scale: number,
 ) {
@@ -107,7 +109,7 @@ function renderParentRects(
     if (!HasRenderedChild(childrenMap, node.id, rendered)) {
       continue;
     }
-    const bounds = DescendantBounds(nodes, node.id, rendered, 16);
+    const bounds = DescendantBounds(nodes, node.id, rendered, 16, nodeSizes);
     if (bounds === null) {
       continue;
     }
@@ -139,22 +141,29 @@ function HasRenderedChild(
 }
 
 /** One thin line per edge, between the connected nodes' ports. */
-function renderEdgeLines(edges: GraphEdge[], nodeMap: Map<string, GraphNode>, toMini: (x: number, y: number) => Point) {
+function renderEdgeLines(
+  edges: GraphEdge[],
+  nodeMap: Map<string, GraphNode>,
+  nodeSizes: Record<string, NodeSize>,
+  toMini: (x: number, y: number) => Point,
+) {
   return edges.map(edge => {
     const from = nodeMap.get(edge.from);
     const to = nodeMap.get(edge.to);
     if (from === undefined || to === undefined) {
       return null;
     }
-    const start = toMini(from.x + NODE_W, from.y + NODE_H / 2);
-    const end = toMini(to.x, to.y + NODE_H / 2);
+    const start = PortOut(from, nodeSizes[edge.from]);
+    const end = PortIn(to, nodeSizes[edge.to]);
+    const startMini = toMini(start.x, start.y);
+    const endMini = toMini(end.x, end.y);
     return (
       <line
         key={edge.id}
-        x1={start.x}
-        y1={start.y}
-        x2={end.x}
-        y2={end.y}
+        x1={startMini.x}
+        y1={startMini.y}
+        x2={endMini.x}
+        y2={endMini.y}
         stroke="#444"
         strokeWidth={1}
       />
@@ -163,17 +172,24 @@ function renderEdgeLines(edges: GraphEdge[], nodeMap: Map<string, GraphNode>, to
 }
 
 /** One colored rectangle per rendered node. */
-function renderNodeRects(nodes: GraphNode[], rendered: Set<string>, toMini: (x: number, y: number) => Point, scale: number) {
+function renderNodeRects(
+  nodes: GraphNode[],
+  rendered: Set<string>,
+  nodeSizes: Record<string, NodeSize>,
+  toMini: (x: number, y: number) => Point,
+  scale: number,
+) {
   return nodes.filter(node => rendered.has(node.id)).map(node => {
     const origin = toMini(node.x, node.y);
     const colors = TYPE_COLORS[node.type];
+    const size = nodeSizes[node.id];
     return (
       <rect
         key={node.id}
         x={origin.x}
         y={origin.y}
-        width={Math.max(NODE_W * scale, 4)}
-        height={Math.max(NODE_H * scale, 3)}
+        width={Math.max((size?.width ?? NODE_W) * scale, 4)}
+        height={Math.max((size?.height ?? NODE_H) * scale, 3)}
         fill={colors.dot}
         rx={1}
         opacity={0.8}

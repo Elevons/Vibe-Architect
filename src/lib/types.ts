@@ -90,3 +90,13 @@ export interface TypeColors {
 export interface LayoutResult {
   nodes: GraphNode[];
 }
+
+/**
+ * Measured on-canvas size of a node card (border box, world units).
+ * Card heights vary with content, so edges use these instead of the
+ * default dimensions whenever a measurement is available.
+ */
+export interface NodeSize {
+  width: number;
+  height: number;
+}

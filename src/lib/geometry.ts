@@ -1,24 +1,38 @@
 import { NODE_H, NODE_W } from "./constants";
-import type { Bounds, GraphNode, Point } from "./types";
+import type { Bounds, GraphNode, NodeSize, Point } from "./types";
 
 /**
  * Canvas geometry: port positions, edge curves, coordinate conversion,
  * and bounding boxes.
+ *
+ * Card heights are variable (descriptions, action rows, edit forms grow
+ * the box), so port math takes an optional measured size and falls back to
+ * the default card dimensions when one is not available yet.
  */
 
+/** Width of a card, measured or default. */
+function widthOf(size?: NodeSize): number {
+  return size?.width ?? NODE_W;
+}
+
+/** Height of a card, measured or default. */
+function heightOf(size?: NodeSize): number {
+  return size?.height ?? NODE_H;
+}
+
 /** Center of a node. */
-export function CenterOf(node: GraphNode): Point {
-  return { x: node.x + NODE_W / 2, y: node.y + NODE_H / 2 };
+export function CenterOf(node: GraphNode, size?: NodeSize): Point {
+  return { x: node.x + widthOf(size) / 2, y: node.y + heightOf(size) / 2 };
 }
 
 /** Output port: right edge, vertically centered. */
-export function PortOut(node: GraphNode): Point {
-  return { x: node.x + NODE_W, y: node.y + NODE_H / 2 };
+export function PortOut(node: GraphNode, size?: NodeSize): Point {
+  return { x: node.x + widthOf(size), y: node.y + heightOf(size) / 2 };
 }
 
 /** Input port: left edge, vertically centered. */
-export function PortIn(node: GraphNode): Point {
-  return { x: node.x, y: node.y + NODE_H / 2 };
+export function PortIn(node: GraphNode, size?: NodeSize): Point {
+  return { x: node.x, y: node.y + heightOf(size) / 2 };
 }
 
 /**
@@ -31,14 +45,14 @@ export function EdgePathFromPoints(from: Point, to: Point): string {
 }
 
 /** SVG path for an edge between two nodes, using their ports. */
-export function EdgePath(from: GraphNode, to: GraphNode): string {
-  return EdgePathFromPoints(PortOut(from), PortIn(to));
+export function EdgePath(from: GraphNode, to: GraphNode, fromSize?: NodeSize, toSize?: NodeSize): string {
+  return EdgePathFromPoints(PortOut(from, fromSize), PortIn(to, toSize));
 }
 
 /** Midpoint of an edge between two nodes. */
-export function EdgeMidpoint(from: GraphNode, to: GraphNode): Point {
-  const out = PortOut(from);
-  const input = PortIn(to);
+export function EdgeMidpoint(from: GraphNode, to: GraphNode, fromSize?: NodeSize, toSize?: NodeSize): Point {
+  const out = PortOut(from, fromSize);
+  const input = PortIn(to, toSize);
   return { x: (out.x + input.x) / 2, y: (out.y + input.y) / 2 };
 }
 
@@ -56,6 +70,7 @@ export function DescendantBounds(
   nodeId: string,
   memberIds: Set<string>,
   pad = 20,
+  sizes?: Record<string, NodeSize>,
 ): Bounds | null {
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
   const self = nodeMap.get(nodeId);
@@ -68,8 +83,8 @@ export function DescendantBounds(
   }
   const x1 = Math.min(...members.map(node => node.x)) - pad;
   const y1 = Math.min(...members.map(node => node.y)) - pad;
-  const x2 = Math.max(...members.map(node => node.x + NODE_W)) + pad;
-  const y2 = Math.max(...members.map(node => node.y + NODE_H)) + pad;
+  const x2 = Math.max(...members.map(node => node.x + widthOf(sizes?.[node.id]))) + pad;
+  const y2 = Math.max(...members.map(node => node.y + heightOf(sizes?.[node.id]))) + pad;
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }
 
@@ -109,15 +124,15 @@ function SubtreeMembers(
 }
 
 /** Bounds enclosing all nodes, padded. Falls back to a default canvas. */
-export function WorldBounds(nodes: GraphNode[]): Bounds {
+export function WorldBounds(nodes: GraphNode[], sizes?: Record<string, NodeSize>): Bounds {
   if (nodes.length === 0) {
     return { x: 0, y: 0, w: 800, h: 600 };
   }
   const pad = 80;
   const x1 = Math.min(...nodes.map(node => node.x)) - pad;
   const y1 = Math.min(...nodes.map(node => node.y)) - pad;
-  const x2 = Math.max(...nodes.map(node => node.x + NODE_W)) + pad;
-  const y2 = Math.max(...nodes.map(node => node.y + NODE_H)) + pad;
+  const x2 = Math.max(...nodes.map(node => node.x + widthOf(sizes?.[node.id]))) + pad;
+  const y2 = Math.max(...nodes.map(node => node.y + heightOf(sizes?.[node.id]))) + pad;
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }
 
@@ -125,7 +140,7 @@ export function WorldBounds(nodes: GraphNode[]): Bounds {
  * Bounds of the nodes currently rendered on the canvas.
  * Used for "fit to view".
  */
-export function VisibleBounds(nodes: GraphNode[], rendered: Set<string>): Bounds {
+export function VisibleBounds(nodes: GraphNode[], rendered: Set<string>, sizes?: Record<string, NodeSize>): Bounds {
   const visible = nodes.filter(node => rendered.has(node.id));
   if (visible.length === 0) {
     return { x: 0, y: 0, w: 800, h: 600 };
@@ -134,7 +149,7 @@ export function VisibleBounds(nodes: GraphNode[], rendered: Set<string>): Bounds
   const pad = 80;
   const x1 = Math.min(...visible.map(node => node.x)) - pad;
   const y1 = Math.min(...visible.map(node => node.y)) - pad;
-  const x2 = Math.max(...visible.map(node => node.x + NODE_W)) + pad;
-  const y2 = Math.max(...visible.map(node => node.y + NODE_H)) + pad;
+  const x2 = Math.max(...visible.map(node => node.x + widthOf(sizes?.[node.id]))) + pad;
+  const y2 = Math.max(...visible.map(node => node.y + heightOf(sizes?.[node.id]))) + pad;
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }

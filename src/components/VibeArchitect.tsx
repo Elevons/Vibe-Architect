@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Dispatch, PointerEvent as ReactPointerEvent, ReactElement, SetStateAction } from "react";
 import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
@@ -10,7 +10,7 @@ import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
 import { DagLayout } from "../lib/layout";
 import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
-import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeType, Point, RunMode } from "../lib/types";
+import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, RunMode } from "../lib/types";
 import { EdgeLabel } from "./EdgeLabel";
 import { HierarchyPanel } from "./HierarchyPanel";
 import { Minimap } from "./Minimap";
@@ -38,9 +38,22 @@ export function VibeArchitect() {
   const [showSaveLoad, setShowSaveLoad] = useState(false);
   const [showIngest, setShowIngest] = useState(false);
   const [showHierarchy, setShowHierarchy] = useState(true);
+  // Measured card sizes, keyed by node id. Edges anchor to the real port
+  // position, so noodles follow their ports when a card grows or shrinks.
+  const [nodeSizes, setNodeSizes] = useState<Record<string, NodeSize>>({});
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasSize = useCanvasSize(canvasRef);
+
+  const reportNodeSize = useCallback((id: string, width: number, height: number): void => {
+    setNodeSizes(prev => {
+      const current = prev[id];
+      if (current !== undefined && current.width === width && current.height === height) {
+        return prev;
+      }
+      return { ...prev, [id]: { width, height } };
+    });
+  }, []);
 
   // ── CRUD (updateNode/addEdge live here so the interaction hook can use them) ──
   const updateNode = (id: string, patch: Partial<GraphNode>): void => {
@@ -216,7 +229,7 @@ export function VibeArchitect() {
 
   const fitToView = (): void => {
     if (nodes.length > 0) {
-      fitBounds(VisibleBounds(nodes, rendered));
+      fitBounds(VisibleBounds(nodes, rendered, nodeSizes));
     }
   };
 
@@ -260,7 +273,7 @@ export function VibeArchitect() {
 
   return (
     <div className="va-root" style={{
-      width: "100%", height: "100vh", background: "#0c0c0f", display: "flex",
+      width: "100%", height: "100vh", background: "#000", display: "flex",
       flexDirection: "column", fontFamily: FONT, overflow: "hidden",
     }}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}${ResponsiveCss}`}</style>
@@ -307,7 +320,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, pointerEvents: "none",
         }}>
-          {renderParentBackgrounds(nodes, rendered)}
+          {renderParentBackgrounds(nodes, rendered, nodeSizes)}
         </div>
 
         {/* SVG edges (scaled) */}
@@ -318,8 +331,8 @@ export function VibeArchitect() {
             </marker>
           </defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            {renderEdges(edges, nodeMap, rendered, zoom, updateEdgeLabel, deleteEdge)}
-            {renderEdgeDraft(edgeDraft, rect, nodeMap, pointerPos, pan, zoom)}
+            {renderEdges(edges, nodeMap, rendered, zoom, nodeSizes, updateEdgeLabel, deleteEdge)}
+            {renderEdgeDraft(edgeDraft, rect, nodeMap, pointerPos, pan, zoom, nodeSizes)}
           </g>
         </svg>
 
@@ -328,7 +341,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
         }}>
-          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent)}
+          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize)}
         </div>
 
         {nodes.length === 0 && (
@@ -341,6 +354,7 @@ export function VibeArchitect() {
           nodes={nodes}
           edges={edges}
           nodeMap={nodeMap}
+          nodeSizes={nodeSizes}
           rendered={rendered}
           pan={pan}
           zoom={zoom}
@@ -432,7 +446,7 @@ function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promi
 }
 
 /** Dashed fill behind each rendered parent, sized to its rendered children. */
-function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>): ReactElement[] {
+function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>, nodeSizes: Record<string, NodeSize>): ReactElement[] {
   const childrenMap = BuildChildrenMap(nodes);
   const backgrounds: ReactElement[] = [];
   let colorIndex = 0;
@@ -443,7 +457,7 @@ function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>): Rea
     if (!HasRenderedChild(childrenMap, node.id, rendered)) {
       continue;
     }
-    const bounds = DescendantBounds(nodes, node.id, rendered, 14);
+    const bounds = DescendantBounds(nodes, node.id, rendered, 14, nodeSizes);
     if (bounds === null) {
       continue;
     }
@@ -478,6 +492,7 @@ function renderEdges(
   nodeMap: Map<string, GraphNode>,
   rendered: Set<string>,
   zoom: number,
+  nodeSizes: Record<string, NodeSize>,
   updateEdgeLabel: (edgeId: string, label: string) => void,
   deleteEdge: (edgeId: string) => void,
 ) {
@@ -490,8 +505,8 @@ function renderEdges(
     if (!rendered.has(edge.from) || !rendered.has(edge.to)) {
       return null;
     }
-    const pointA = PortOut(from);
-    const pointB = PortIn(to);
+    const pointA = PortOut(from, nodeSizes[edge.from]);
+    const pointB = PortIn(to, nodeSizes[edge.to]);
     const path = EdgePathFromPoints(pointA, pointB);
     const mid = { x: (pointA.x + pointB.x) / 2, y: (pointA.y + pointB.y) / 2 };
     return (
@@ -522,6 +537,7 @@ function renderEdgeDraft(
   mousePos: Point,
   pan: Point,
   zoom: number,
+  nodeSizes: Record<string, NodeSize>,
 ) {
   if (edgeDraft === null || rect === undefined) {
     return null;
@@ -530,7 +546,7 @@ function renderEdgeDraft(
   if (fromNode === undefined) {
     return null;
   }
-  const from = PortOut(fromNode);
+  const from = PortOut(fromNode, nodeSizes[edgeDraft.from]);
   const toX = (mousePos.x - rect.left - pan.x) / zoom;
   const toY = (mousePos.y - rect.top - pan.y) / zoom;
   return (
@@ -562,6 +578,7 @@ function renderNodes(
   toggleCollapse: (id: string) => void,
   setVisible: (id: string, visible: boolean) => void,
   setParent: (id: string, parentId: string | null) => void,
+  reportNodeSize: (id: string, width: number, height: number) => void,
 ) {
   return nodes.filter(node => rendered.has(node.id)).map(node => (
     <NodeCard
@@ -580,6 +597,7 @@ function renderNodes(
       onToggleCollapse={toggleCollapse}
       onSetVisible={setVisible}
       onSetParent={setParent}
+      onSizeChange={reportNodeSize}
     />
   ));
 }
