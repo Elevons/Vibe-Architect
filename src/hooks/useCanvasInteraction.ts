@@ -30,6 +30,7 @@ interface CanvasInteractionOptions {
   setZoom: (zoom: number) => void;
   setSelected: (id: string | null) => void;
   updateNode: (id: string, patch: Partial<GraphNode>) => void;
+  moveSubtree: (rootId: string, x: number, y: number) => void;
   addEdge: (from: string, to: string) => void;
 }
 
@@ -39,7 +40,7 @@ export interface CanvasInteraction {
   pointerPos: Point;
   edgeDraft: EdgeDraft | null;
   canvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  handleDragStart: (event: ReactPointerEvent, id: string) => void;
+  handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void;
   handleStartEdge: (fromId: string, event: ReactPointerEvent) => void;
   handleEndEdge: (toId: string) => void;
 }
@@ -59,7 +60,7 @@ interface ActivePointer {
 const PAN_DEADZONE = 6;
 
 export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasInteraction {
-  const { canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, addEdge } = options;
+  const { canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge } = options;
 
   const [panning, setPanning] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -91,6 +92,9 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   // Screen-space grab offset for a node drag: pointer minus node origin.
   const dragOffset = useRef<Point>({ x: 0, y: 0 });
   const dragPointerId = useRef<number | null>(null);
+  // True while the active drag moves a folder's whole subtree (group drag)
+  // rather than a single node.
+  const draggingGroupRef = useRef(false);
   // Pan bookkeeping: pointer position minus pan at the moment panning began.
   const panStart = useRef<Point | null>(null);
   // First finger's client position at pan start, for the pan deadzone.
@@ -124,7 +128,11 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
         const screenY = event.clientY - rect.top;
         const worldX = (screenX - dragOffset.current.x - panRef.current.x) / zoomRef.current;
         const worldY = (screenY - dragOffset.current.y - panRef.current.y) / zoomRef.current;
-        updateNode(draggingId, { x: worldX, y: worldY });
+        if (draggingGroupRef.current) {
+          moveSubtree(draggingId, worldX, worldY);
+        } else {
+          updateNode(draggingId, { x: worldX, y: worldY });
+        }
       }
       if (panning && panStart.current !== null && panOrigin.current !== null) {
         const deltaX = event.clientX - panOrigin.current.x;
@@ -143,6 +151,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       }
       if (dragPointerId.current === event.pointerId) {
         dragPointerId.current = null;
+        draggingGroupRef.current = false;
         setDraggingId(null);
         setEdgeDraft(null);
       }
@@ -161,7 +170,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [canvasRef, draggingId, panning, commitPan, commitZoom, updateNode]);
+  }, [canvasRef, draggingId, panning, commitPan, commitZoom, updateNode, moveSubtree]);
 
   // ── Press on the canvas itself (pan area or empty space) ──
   const canvasPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -199,8 +208,11 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
     }
   };
 
-  // ── Press on a node card body: select + begin dragging it ──
-  const handleDragStart = (event: ReactPointerEvent, id: string): void => {
+  // ── Press on a node card body: select + drag it ──
+  // On a folder's header bar, `group` is true and the drag moves the folder
+  // and its whole subtree. When `group` is false the card body drags the
+  // single node.
+  const handleDragStart = (event: ReactPointerEvent, id: string, group = false): void => {
     if (draggingId !== null) {
       return;
     }
@@ -216,6 +228,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
     const liveZoom = zoomRef.current;
     dragOffset.current = { x: screenX - node.x * liveZoom - livePan.x, y: screenY - node.y * liveZoom - livePan.y };
     dragPointerId.current = event.pointerId;
+    draggingGroupRef.current = group;
     setDraggingId(id);
     // Register the drag pointer so a second finger landing on the canvas
     // starts a pinch instead of a pan.

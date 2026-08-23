@@ -80,6 +80,28 @@ async function addViaMenu(label: string): Promise<void> {
   await nextFrame();
 }
 
+/**
+ * Group `child` under `folder` by dragging the folder's grouping output port
+ * ([title='Drag to group'], bottom edge) onto the child's input port (top
+ * edge, opacity 0.5). This is the documented "Drag to group" interaction and
+ * targets the source folder directly, so it is unambiguous.
+ */
+async function groupPortDrag(folder: HTMLElement, child: HTMLElement): Promise<void> {
+  const outPort = folder.querySelector("[title='Drag to group']") as HTMLElement;
+  const inPort = Array.from(child.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement;
+  if (outPort === null || inPort === undefined) {
+    throw new Error("ports not found for grouping drag (test 16)");
+  }
+  const ob = outPort.getBoundingClientRect();
+  const ib = inPort.getBoundingClientRect();
+  fire(outPort, "pointerdown", ob.left + 5, ob.top + 5, 1);
+  await nextFrame();
+  fire(outPort, "pointermove", ib.left + 5, ib.top + 5, 1);
+  await nextFrame();
+  fire(inPort, "pointerup", ib.left + 5, ib.top + 5, 1);
+  await nextFrame();
+}
+
 async function run(): Promise<void> {
   const root = createRoot(document.getElementById("root") as HTMLElement);
   root.render(<VibeArchitect />);
@@ -533,6 +555,95 @@ async function run(): Promise<void> {
     "pinch stays anchored after first-finger pan",
     driftHeld && maxAnchorError < 2 && zoomedIn,
     `driftHeld=${driftHeld} anchorError=${maxAnchorError.toFixed(2)}px zoomedIn=${zoomedIn}`,
+  );
+
+  // ── Test 16: dragging a folder's header bar moves the whole subtree ──
+  // Build a fresh folder with two children, then drag the folder's header
+  // and verify every member moves by the same world delta (the group keeps
+  // its internal layout).
+  await addViaMenu("Folder");
+  await addViaMenu("File");
+  await addViaMenu("File");
+
+  // Folders emit a grouping output port ([title='Drag to group']) on the
+  // bottom edge; files only have the input port (opacity 0.5). New nodes
+  // append last in the DOM, so the newest folder is the last card that has
+  // an output port, and the two newest files are the last two without one.
+  // Identifying by port presence (not by default name) stays unambiguous even
+  // when earlier tests left identically-named folders behind.
+  const cards16 = nodeCards();
+  const folderCard16 = cards16.find(card => card.querySelector("[title='Drag to group']") !== null);
+  const fileCards16 = cards16.filter(card => card.querySelector("[title='Drag to group']") === null).slice(-2);
+  if (folderCard16 === undefined || fileCards16.length < 2) {
+    throw new Error(`expected a folder and two files (test 16), got ${nodeCards().length} cards`);
+  }
+
+  // Group both files under the folder by dragging the folder's output port
+  // onto each file's input port (the documented "Drag to group" interaction).
+  await groupPortDrag(folderCard16, fileCards16[0]);
+  await groupPortDrag(folderCard16, fileCards16[1]);
+
+  // The folder must now be a real parent (it shows a collapse/expand chevron).
+  const collapseBtn = folderCard16.querySelector("button[title*='children']");
+  if (collapseBtn === null) {
+    throw new Error(`folder has no children after grouping drags (test 16)`);
+  }
+
+  // World position of a card's top-left corner (cards are positioned by
+  // left/top in the scaled world layer; React renders numbers as "NNpx").
+  const transform16 = parseTransform();
+  const cardWorld = (card: HTMLElement): { x: number; y: number } => ({
+    x: parseFloat(card.style.left),
+    y: parseFloat(card.style.top),
+  });
+  const before16 = {
+    folder: cardWorld(folderCard16),
+    file1: cardWorld(fileCards16[0]),
+    file2: cardWorld(fileCards16[1]),
+  };
+
+  // Drag the folder's header bar: the name span's parent is the header div,
+  // which carries the group-drag pointer handler. Move it by a screen delta.
+  const nameSpan16 = folderCard16.querySelector("span");
+  const header16 = nameSpan16?.parentElement as HTMLElement;
+  if (header16 === null) {
+    throw new Error("folder header not found (test 16)");
+  }
+  const box16 = header16.getBoundingClientRect();
+  const startX = box16.left + box16.width / 2;
+  const startY = box16.top + box16.height / 2;
+  const DRAG_SCREEN = { x: 80, y: 60 };
+  fire(header16, "pointerdown", startX, startY, 1);
+  await nextFrame();
+  fire(header16, "pointermove", startX + DRAG_SCREEN.x, startY + DRAG_SCREEN.y, 1);
+  await nextFrame();
+  fire(header16, "pointerup", startX + DRAG_SCREEN.x, startY + DRAG_SCREEN.y, 1);
+  await nextFrame();
+
+  // The screen delta maps to a world delta divided by the current zoom.
+  const zoom16 = transform16.zoom;
+  const expectedDelta = { x: DRAG_SCREEN.x / zoom16, y: DRAG_SCREEN.y / zoom16 };
+  const after16 = {
+    folder: cardWorld(folderCard16),
+    file1: cardWorld(fileCards16[0]),
+    file2: cardWorld(fileCards16[1]),
+  };
+  const deltaOf = (before: { x: number; y: number }, after: { x: number; y: number }): { x: number; y: number } => ({
+    x: after.x - before.x,
+    y: after.y - before.y,
+  });
+  const deltas = {
+    folder: deltaOf(before16.folder, after16.folder),
+    file1: deltaOf(before16.file1, after16.file1),
+    file2: deltaOf(before16.file2, after16.file2),
+  };
+  const closeTo = (actual: { x: number; y: number }): boolean =>
+    Math.abs(actual.x - expectedDelta.x) < 1 && Math.abs(actual.y - expectedDelta.y) < 1;
+  const groupMovedTogether = closeTo(deltas.folder) && closeTo(deltas.file1) && closeTo(deltas.file2);
+  pass(
+    "folder header drag moves the whole subtree",
+    groupMovedTogether,
+    `folder=(+${deltas.folder.x.toFixed(1)},+${deltas.folder.y.toFixed(1)}) file1=(+${deltas.file1.x.toFixed(1)},+${deltas.file1.y.toFixed(1)}) file2=(+${deltas.file2.x.toFixed(1)},+${deltas.file2.y.toFixed(1)}) expected≈(+${expectedDelta.x.toFixed(1)},+${expectedDelta.y.toFixed(1)})`,
   );
 
   const pre = document.getElementById("results") as HTMLElement;

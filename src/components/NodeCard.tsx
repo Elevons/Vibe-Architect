@@ -29,6 +29,7 @@ interface NodeCardProps {
   zoom: number;
   onSelect: (id: string) => void;
   onDragStart: (event: ReactPointerEvent, id: string) => void;
+  onGroupDragStart: (event: ReactPointerEvent, id: string) => void;
   onUpdate: (id: string, patch: Partial<GraphNode>) => void;
   onDelete: (id: string) => void;
   onStartEdge: (id: string, event: ReactPointerEvent) => void;
@@ -140,7 +141,7 @@ export function NodeCard(props: NodeCardProps) {
       {renderCornerControls(node, isParent, props)}
       {editing
         ? renderEditForm(node, nodes, plugins, localName, localDesc, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
-        : renderDisplay(node, nodes, plugins, beginEdit, isParent)}
+        : renderDisplay(node, nodes, plugins, beginEdit, isParent, node.type === "folder", props.onGroupDragStart)}
       {selected && !editing && renderActionRow(node, showOutput, setEditing, setShowOutput, props)}
       {showOutput && node.agentOutput !== null && (
         <pre style={{
@@ -184,7 +185,9 @@ function renderCollapsedCard(
         boxShadow: selected ? `0 0 0 2px ${colors.border}44, 0 4px 24px #0008` : "0 2px 12px #0004",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 46 }}>
+      <div
+        onPointerDown={node.type === "folder" ? event => { event.stopPropagation(); props.onGroupDragStart(event, node.id); } : undefined}
+        style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 46, cursor: node.type === "folder" ? "grab" : "default" }}>
         <span style={{ color: colors.dot, fontSize: 12, lineHeight: 1 }}>▣</span>
         <span style={{
           fontFamily: FONT, fontSize: 12, fontWeight: 700, color: "#e8e8f0",
@@ -290,14 +293,16 @@ function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardPr
 }
 
 /** Double-click/double-tap read-only view of the node. */
-function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], beginEdit: () => void, isParent: boolean) {
+function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], beginEdit: () => void, isParent: boolean, isFolder: boolean, onGroupDragStart?: (event: ReactPointerEvent, id: string) => void) {
   const colors = ColorsForType(node.type, plugins);
   const nodeMap = BuildNodeMap(nodes);
   const parentName = node.parentId !== null ? nodeMap.get(node.parentId)?.name ?? "" : "";
   const statusColor = AgentStatusColor(node.agentStatus);
   return (
     <div onDoubleClick={beginEdit}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingRight: isParent ? 48 : 28 }}>
+      <div
+        onPointerDown={isFolder && onGroupDragStart ? event => { event.stopPropagation(); onGroupDragStart(event, node.id); } : undefined}
+        style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingRight: isParent ? 48 : 28, cursor: isFolder ? "grab" : "default" }}>
         {node.agentStatus !== "idle" && (
           <span style={{
             width: 8, height: 8, borderRadius: "50%", background: statusColor, flexShrink: 0,

@@ -79,8 +79,29 @@ export function VibeArchitect() {
     setNodes(prev => SetParent(prev, to, from));
   };
 
+  /**
+   * Move a folder and its entire subtree together: the root is placed at
+   * (x, y) and every descendant is shifted by the same delta, so the group
+   * keeps its internal layout. Driven by the folder's group-drag handle.
+   */
+  const moveSubtree = (rootId: string, x: number, y: number): void => {
+    const root = nodes.find(node => node.id === rootId);
+    if (root === undefined) {
+      return;
+    }
+    const deltaX = x - root.x;
+    const deltaY = y - root.y;
+    if (deltaX === 0 && deltaY === 0) {
+      return;
+    }
+    const subtree = new Set(SubtreeIds(nodes, rootId));
+    setNodes(prev => prev.map(node => subtree.has(node.id)
+      ? { ...node, x: node.x + deltaX, y: node.y + deltaY }
+      : node));
+  };
+
   const { panning, pointerPos, edgeDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge } =
-    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, addEdge });
+    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge });
   useWheelZoom(canvasRef, pan, zoom, setPan, setZoom);
 
   const nodeMap = useMemo(() => BuildNodeMap(nodes), [nodes]);
@@ -575,7 +596,7 @@ function renderNodes(
   rendered: Set<string>,
   selected: string | null,
   handleSelect: (id: string) => void,
-  handleDragStart: (event: ReactPointerEvent, id: string) => void,
+  handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void,
   updateNode: (id: string, patch: Partial<GraphNode>) => void,
   deleteNode: (id: string) => void,
   handleStartEdge: (id: string, event: ReactPointerEvent) => void,
@@ -598,6 +619,7 @@ function renderNodes(
       zoom={zoom}
       onSelect={handleSelect}
       onDragStart={handleDragStart}
+      onGroupDragStart={(event, id) => handleDragStart(event, id, true)}
       onUpdate={updateNode}
       onDelete={deleteNode}
       onStartEdge={handleStartEdge}
