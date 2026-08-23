@@ -97,6 +97,22 @@ async function run(): Promise<void> {
   pass("snapshot round-trip keeps plugins", roundTripped !== null && roundTripped.plugins !== undefined && roundTripped.plugins.length === 1 && roundTripped.plugins[0].name === "test-pkg");
   pass("snapshot round-trip keeps custom node type", roundTripped !== null && roundTripped.nodes[0].type === "tp:alpha", roundTripped?.nodes[0].type ?? "null");
 
+  // Built-in types must survive a round-trip untouched (regression: "file"
+  // used to fall through to the unknown-custom branch and become "concept").
+  const builtInText = JSON.stringify({
+    nodes: [
+      { id: "f1", x: 0, y: 0, name: "a.ts", path: "", desc: "", type: "file", parentId: null, visible: true, collapsed: false },
+      { id: "f2", x: 0, y: 0, name: "d/", path: "", desc: "", type: "folder", parentId: null, visible: true, collapsed: false },
+      { id: "f3", x: 0, y: 0, name: "idea", path: "", desc: "", type: "concept", parentId: null, visible: true, collapsed: false },
+      { id: "f4", x: 0, y: 0, name: "legacy", path: "", desc: "", parentId: null, visible: true, collapsed: false },
+    ],
+    edges: [],
+    mode: "parallel",
+  });
+  const builtIn = ParseGraphSnapshot(builtInText);
+  const builtInTypes = builtIn !== null ? builtIn.nodes.map(node => node.type).join(",") : "null";
+  pass("built-in types survive round-trip", builtInTypes === "file,folder,concept,file", builtInTypes);
+
   // A custom type whose plugin is absent falls back to concept, not file.
   const noPluginText = JSON.stringify({
     nodes: [{ id: "n2", x: 0, y: 0, name: "Ghost", path: "", desc: "", type: "b2b:export", parentId: null, visible: true, collapsed: false }],

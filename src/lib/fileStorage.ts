@@ -104,7 +104,7 @@ function NormalizeType(raw: unknown, pluginTypes: Set<string>): GraphNode["type"
   if (typeof raw !== "string" || raw === "") {
     return "file";
   }
-  if (raw === "folder" || raw === "concept") {
+  if (raw === "file" || raw === "folder" || raw === "concept") {
     return raw;
   }
   if (pluginTypes.has(raw)) {
