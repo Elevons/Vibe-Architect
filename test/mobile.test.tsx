@@ -416,6 +416,73 @@ async function run(): Promise<void> {
   }
   pass("edges anchor to measured ports", measurement.total === 2 && measurement.anchored === 2, `anchored ${measurement.anchored}/${measurement.total}`);
 
+  // ── Test 15: pinch stays anchored when the first finger has already panned ──
+  // Regression: a fast pinch used to read a stale pan/zoom closure, so the
+  // view jumped when the second finger landed mid-pan. We verify two things:
+  //   (a) sub-deadzone first-finger drift does not move the view, and
+  //   (b) the world point under the midpoint at pinch start stays under the
+  //       (moving) midpoint throughout the pinch — i.e. no jump.
+  // The app converts screen→world using the canvasRef div (the one with
+  // onPointerDown), which is the data-pan div's parent. Use the same element
+  // so the test's world math matches the app's exactly.
+  const refDiv15 = canvas.parentElement as HTMLElement;
+  const box15 = refDiv15.getBoundingClientRect();
+  const toWorld15 = (screenX: number, screenY: number, pan: { x: number; y: number }, zoom: number): { x: number; y: number } => ({
+    x: (screenX - box15.left - pan.x) / zoom,
+    y: (screenY - box15.top - pan.y) / zoom,
+  });
+
+  // (a) Deadzone: first finger drifts 3px (< 6px deadzone) → no pan.
+  const panBeforeDrift = parseTransform();
+  fire(canvas, "pointerdown", 150, 400, 1);
+  await nextFrame();
+  fire(canvas, "pointermove", 153, 402, 1);
+  await nextFrame();
+  const panAfterDrift = parseTransform();
+  const driftHeld = Math.abs(panAfterDrift.x - panBeforeDrift.x) < 0.5 && Math.abs(panAfterDrift.y - panBeforeDrift.y) < 0.5;
+
+  // (b) Reproduce the fast-pinch race: push past the deadzone (a real pan
+  // commits) and land the second finger in the *same frame* — no await
+  // between, so the second pointerdown's closure still holds the pre-pan
+  // pan/zoom. The app must read live values or the pinch anchor jumps.
+  // The committed pan is panBeforeDrift + (175-150, 415-400); the pinch's
+  // midpoint is ((175+255)/2, (415+405)/2) in client coords.
+  fire(canvas, "pointermove", 175, 415, 1);
+  fire(canvas, "pointerdown", 255, 405, 2);
+  await nextFrame();
+  const pannedPan = { x: panBeforeDrift.x + 25, y: panBeforeDrift.y + 15 };
+  const worldMid15 = toWorld15((175 + 255) / 2, (415 + 405) / 2, pannedPan, panBeforeDrift.zoom);
+
+  // Spread the fingers; the anchor must stay pinned to worldMid15.
+  const spreadSteps: [number, number, number, number][] = [
+    [150, 415, 280, 405],
+    [120, 425, 310, 395],
+    [90, 435, 340, 385],
+  ];
+  let maxAnchorError = 0;
+  for (const [x1, y1, x2, y2] of spreadSteps) {
+    fire(canvas, "pointermove", x1, y1, 1);
+    await nextFrame();
+    fire(canvas, "pointermove", x2, y2, 2);
+    await nextFrame();
+    const current = parseTransform();
+    const curMidX = (x1 + x2) / 2;
+    const curMidY = (y1 + y2) / 2;
+    const underMid = toWorld15(curMidX, curMidY, current, current.zoom);
+    maxAnchorError = Math.max(maxAnchorError, Math.hypot(underMid.x - worldMid15.x, underMid.y - worldMid15.y));
+  }
+  fire(canvas, "pointerup", 340, 385, 2);
+  await nextFrame();
+  fire(canvas, "pointerup", 90, 435, 1);
+  await nextFrame();
+  const zoomAfterPinch15 = parseTransform().zoom;
+  const zoomedIn = zoomAfterPinch15 > panBeforeDrift.zoom * 1.2;
+  pass(
+    "pinch stays anchored after first-finger pan",
+    driftHeld && maxAnchorError < 2 && zoomedIn,
+    `driftHeld=${driftHeld} anchorError=${maxAnchorError.toFixed(2)}px zoomedIn=${zoomedIn}`,
+  );
+
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");
   document.title = results.every(line => line.startsWith("PASS")) ? "ALL PASS" : "FAILURES";

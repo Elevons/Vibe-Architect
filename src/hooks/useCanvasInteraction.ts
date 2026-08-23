@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { MAX_ZOOM, MIN_ZOOM } from "../lib/constants";
 import type { GraphEdge, GraphNode, Point } from "../lib/types";
@@ -51,6 +51,13 @@ interface ActivePointer {
   y: number;
 }
 
+/**
+ * How far (px) the first finger must move before a pan actually moves the
+ * canvas. A fast pinch usually lands before the first finger drifts this
+ * far, so the deadzone keeps a pinch from nudging the view first.
+ */
+const PAN_DEADZONE = 6;
+
 export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasInteraction {
   const { canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, addEdge } = options;
 
@@ -59,6 +66,26 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   const [pointerPos, setPointerPos] = useState<Point>({ x: 0, y: 0 });
   const [edgeDraft, setEdgeDraft] = useState<EdgeDraft | null>(null);
 
+  // Live mirrors of pan/zoom. setPan/setZoom are batched, so the render
+  // closure can be stale for a frame or two; a fast second finger landing
+  // mid-pan must read the *current* values or the pinch anchor jumps. The
+  // refs are refreshed on every render (catches external setPan/setZoom)
+  // and, more importantly, synchronously inside commitPan/commitZoom so a
+  // pinch that starts within the same frame as a pan reads live values.
+  const panRef = useRef(pan);
+  panRef.current = pan;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  const commitPan = useCallback((next: Point): void => {
+    panRef.current = next;
+    setPan(next);
+  }, [setPan]);
+  const commitZoom = useCallback((next: number): void => {
+    zoomRef.current = next;
+    setZoom(next);
+  }, [setZoom]);
+
   // Pointers currently pressed anywhere on the canvas (max 2 used).
   const pointers = useRef<ActivePointer[]>([]);
   // Screen-space grab offset for a node drag: pointer minus node origin.
@@ -66,6 +93,8 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   const dragPointerId = useRef<number | null>(null);
   // Pan bookkeeping: pointer position minus pan at the moment panning began.
   const panStart = useRef<Point | null>(null);
+  // First finger's client position at pan start, for the pan deadzone.
+  const panOrigin = useRef<Point | null>(null);
   // Pinch bookkeeping: the gesture's starting distance/zoom and the world
   // point under the midpoint that must stay pinned as the fingers move.
   const pinchStart = useRef<{ distance: number; zoom: number; worldMid: Point } | null>(null);
@@ -87,18 +116,23 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       const rect = canvas.getBoundingClientRect();
 
       if (pinchStart.current !== null && pointers.current.length >= 2) {
-        applyPinch(rect, pinchStart.current, pointers.current, setPan, setZoom);
+        applyPinch(rect, pinchStart.current, pointers.current, commitPan, commitZoom);
         return;
       }
       if (draggingId !== null && dragPointerId.current === event.pointerId) {
         const screenX = event.clientX - rect.left;
         const screenY = event.clientY - rect.top;
-        const worldX = (screenX - dragOffset.current.x - pan.x) / zoom;
-        const worldY = (screenY - dragOffset.current.y - pan.y) / zoom;
+        const worldX = (screenX - dragOffset.current.x - panRef.current.x) / zoomRef.current;
+        const worldY = (screenY - dragOffset.current.y - panRef.current.y) / zoomRef.current;
         updateNode(draggingId, { x: worldX, y: worldY });
       }
-      if (panning && panStart.current !== null) {
-        setPan({ x: event.clientX - panStart.current.x, y: event.clientY - panStart.current.y });
+      if (panning && panStart.current !== null && panOrigin.current !== null) {
+        const deltaX = event.clientX - panOrigin.current.x;
+        const deltaY = event.clientY - panOrigin.current.y;
+        // Ignore sub-deadzone drift so a fast pinch doesn't pan first.
+        if (Math.hypot(deltaX, deltaY) >= PAN_DEADZONE) {
+          commitPan({ x: event.clientX - panStart.current.x, y: event.clientY - panStart.current.y });
+        }
       }
     };
 
@@ -115,6 +149,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       if (panning && pointers.current.length === 0) {
         setPanning(false);
         panStart.current = null;
+        panOrigin.current = null;
       }
     };
 
@@ -126,7 +161,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [canvasRef, draggingId, panning, pan, zoom, setPan, setZoom, updateNode]);
+  }, [canvasRef, draggingId, panning, commitPan, commitZoom, updateNode]);
 
   // ── Press on the canvas itself (pan area or empty space) ──
   const canvasPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -139,9 +174,12 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
     if (pointers.current.length === 1) {
       setSelected(null);
       setPanning(true);
-      panStart.current = { x: event.clientX - pan.x, y: event.clientY - pan.y };
+      panStart.current = { x: event.clientX - panRef.current.x, y: event.clientY - panRef.current.y };
+      panOrigin.current = { x: event.clientX, y: event.clientY };
     } else if (pointers.current.length === 2) {
-      // Second finger: abandon the pan and begin a pinch.
+      // Second finger: abandon the pan and begin a pinch. Read pan/zoom from
+      // the live refs — a fast pinch may land before the first finger's pan
+      // has committed a re-render, and the anchor must match the current view.
       setPanning(false);
       panStart.current = null;
       const canvas = canvasRef.current;
@@ -150,10 +188,12 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
         const [first, second] = pointers.current;
         const midX = (first.x + second.x) / 2 - rect.left;
         const midY = (first.y + second.y) / 2 - rect.top;
+        const livePan = panRef.current;
+        const liveZoom = zoomRef.current;
         pinchStart.current = {
           distance: Math.max(10, Math.hypot(first.x - second.x, first.y - second.y)),
-          zoom,
-          worldMid: { x: (midX - pan.x) / zoom, y: (midY - pan.y) / zoom },
+          zoom: liveZoom,
+          worldMid: { x: (midX - livePan.x) / liveZoom, y: (midY - livePan.y) / liveZoom },
         };
       }
     }
@@ -172,7 +212,9 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
     const rect = canvas.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
-    dragOffset.current = { x: screenX - node.x * zoom - pan.x, y: screenY - node.y * zoom - pan.y };
+    const livePan = panRef.current;
+    const liveZoom = zoomRef.current;
+    dragOffset.current = { x: screenX - node.x * liveZoom - livePan.x, y: screenY - node.y * liveZoom - livePan.y };
     dragPointerId.current = event.pointerId;
     setDraggingId(id);
     // Register the drag pointer so a second finger landing on the canvas
