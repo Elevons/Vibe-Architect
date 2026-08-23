@@ -1,6 +1,10 @@
 // Generates examples/vibe-architect.json — a loadable GraphSnapshot of this
 // project's own structure (folders, files, and import edges), so the app has
 // a ready-made graph to open via Save/Load → load.
+//
+// Layout: edges flow top to bottom (output port on a card's bottom edge,
+// input port on its top edge), so importers sit above the modules they
+// import. Folders sit just above the cluster they group.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,24 +13,23 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = join(here, "..", "examples");
 mkdirSync(outDir, { recursive: true });
 
-// ── Layout ─────────────────────────────────────────────────────────────
-// Each folder's children are placed in a compact grid just below the
-// folder card, so the auto-drawn folder background wraps them tightly.
-const CARD_W = 280;
-const STEP_X = 370; // card width + horizontal gap
+// ── Layout grid ────────────────────────────────────────────────────────
+const STEP_X = 370; // card width (280) + horizontal gap
 const STEP_Y = 190; // room for a card + vertical gap
+const col = index => index * STEP_X;
+const row = index => index * STEP_Y;
 
 const nodes = [];
 const edges = [];
 let edgeSeq = 0;
 
-function addNode(id, name, path, desc, type, parentId, x, y, collapsed = false) {
+function addNode(id, name, path, desc, type, parentId, x, y) {
   nodes.push({
     id, name, path, desc, type,
     parentId,
     x, y,
     visible: true,
-    collapsed,
+    collapsed: false,
     agentOutput: null,
     agentStatus: "idle",
   });
@@ -34,91 +37,77 @@ function addNode(id, name, path, desc, type, parentId, x, y, collapsed = false) 
 function addEdge(from, to, label = "") {
   edges.push({ id: `e${++edgeSeq}`, from, to, label });
 }
-// Place `count` children of a folder in a grid starting below its card.
-function grid(originX, originY, count, cols = 2) {
-  const positions = [];
-  for (let index = 0; index < count; index++) {
-    positions.push({ x: originX + (index % cols) * STEP_X, y: originY + Math.floor(index / cols) * STEP_Y });
-  }
-  return positions;
-}
 
-// ── Root folders ───────────────────────────────────────────────────────
-addNode("src", "src/", "src", "Application source: entry point, components, hooks, and the core library.", "folder", null, 0, 0);
-addNode("test", "test/", "test", "Headless-Chrome gesture and layout tests that drive the real app with synthetic pointer events.", "folder", null, 3 * STEP_X, 0);
+// Rows follow the topological order of the import graph: an importer sits
+// in a row above the modules it imports, so every edge flows downward.
+// Folders sit just above the cluster they group.
 
-// ── src/ top-level files (row under the src/ card) ────────────────────
-addNode("main", "main.tsx", "src/main.tsx", "React entry point: mounts <App/> into #root.", "file", "src", 0, STEP_Y);
-addNode("app", "App.tsx", "src/App.tsx", "Top-level shell that renders the VibeArchitect canvas.", "file", "src", STEP_X, STEP_Y);
-addNode("viteenv", "vite-env.d.ts", "src/vite-env.d.ts", "Vite client type references for the build.", "file", "src", 2 * STEP_X, STEP_Y);
+// ── Row 0: root folders ────────────────────────────────────────────────
+addNode("src", "src/", "src", "Application source: entry point, components, hooks, and the core library.", "folder", null, col(0), row(0));
+addNode("test", "test/", "test", "Headless-Chrome gesture and layout tests that drive the real app with synthetic pointer events.", "folder", null, col(4), row(0));
 
-// ── src/lib/ (12 files, 2-column grid) ─────────────────────────────────
-const libOrigin = { x: 0, y: 2 * STEP_Y };
-addNode("lib", "lib/", "src/lib", "Framework-free core: domain types, geometry, graph algorithms, scene graph, and I/O.", "folder", "src", libOrigin.x, libOrigin.y);
-const libCells = grid(libOrigin.x, libOrigin.y + STEP_Y, 12, 2);
-const libFiles = [
-  ["types", "types.ts", "src/lib/types.ts", "Domain types: GraphNode, GraphEdge, GraphSnapshot, Points, Bounds, NodeSize."],
-  ["constants", "constants.ts", "src/lib/constants.ts", "Shared constants: card sizes, fonts, type colors, group colors."],
-  ["ids", "ids.ts", "src/lib/ids.ts", "Unique id generation for nodes and edges."],
-  ["geometry", "geometry.ts", "src/lib/geometry.ts", "Canvas geometry: port positions, edge curves, coordinate conversion, bounds."],
-  ["graph", "graph.ts", "src/lib/graph.ts", "Graph algorithms: topological sort and cycle detection."],
-  ["scenegraph", "sceneGraph.ts", "src/lib/sceneGraph.ts", "Scene-graph ops: parent/child maps, rendered set, subtree ids, reparenting."],
-  ["layout", "layout.ts", "src/lib/layout.ts", "DAG layout: assigns x/y so dependencies flow left to right."],
-  ["anthropic", "anthropic.ts", "src/lib/anthropic.ts", "Thin client for the Anthropic messages API."],
-  ["agent", "agent.ts", "src/lib/agent.ts", "Per-node code-generation agent: builds a prompt and calls the model."],
-  ["ingest", "ingest.ts", "src/lib/ingest.ts", "Repository ingestion: reads files, describes them, parses imports into edges."],
-  ["prompt", "prompt.ts", "src/lib/prompt.ts", "Serializes the graph to an architecture prompt (file layout + modules + deps)."],
-  ["filestorage", "fileStorage.ts", "src/lib/fileStorage.ts", "JSON file persistence: save downloads, load parses and normalizes snapshots."],
-];
-libFiles.forEach((entry, index) => addNode(entry[0], entry[1], entry[2], entry[3], "file", "lib", libCells[index].x, libCells[index].y));
+// ── Row 1: entry point + tests (the graph's roots) ─────────────────────
+addNode("main", "main.tsx", "src/main.tsx", "React entry point: mounts <App/> into #root.", "file", "src", col(0), row(1));
+addNode("viteenv", "vite-env.d.ts", "src/vite-env.d.ts", "Vite client type references for the build.", "file", "src", col(1), row(1));
+addNode("mobiletest", "mobile.test.tsx", "test/mobile.test.tsx", "Synthetic-pointer gesture suite: pan, pinch, drag, tap, edges, hierarchy.", "file", "test", col(4), row(1));
+addNode("layouttest", "layout.test.tsx", "test/layout.test.tsx", "Layout metrics probe: toolbar wrap, touch targets, minimap, panel gaps.", "file", "test", col(5), row(1));
 
-// ── src/hooks/ (4 files, 2-column grid) ────────────────────────────────
-const hooksOrigin = { x: 2 * STEP_X, y: 2 * STEP_Y };
-addNode("hooks", "hooks/", "src/hooks", "React hooks that wrap canvas interaction, sizing, zoom, and double-tap.", "folder", "src", hooksOrigin.x, hooksOrigin.y);
-const hooksCells = grid(hooksOrigin.x, hooksOrigin.y + STEP_Y, 4, 2);
-const hooksFiles = [
-  ["usecanvassize", "useCanvasSize.ts", "src/hooks/useCanvasSize.ts", "Tracks the canvas element's width/height with a ResizeObserver."],
-  ["usewheelzoom", "useWheelZoom.ts", "src/hooks/useWheelZoom.ts", "Scroll-wheel zoom centered on the cursor."],
-  ["useinteraction", "useCanvasInteraction.ts", "src/hooks/useCanvasInteraction.ts", "Pointer logic for panning, node dragging, and edge drafting."],
-  ["usedoubletap", "useDoubleTap.ts", "src/hooks/useDoubleTap.ts", "Detects a double-tap/click to trigger edit."],
-];
-hooksFiles.forEach((entry, index) => addNode(entry[0], entry[1], entry[2], entry[3], "file", "hooks", hooksCells[index].x, hooksCells[index].y));
+// ── Row 2: app shell ───────────────────────────────────────────────────
+addNode("app", "App.tsx", "src/App.tsx", "Top-level shell that renders the VibeArchitect canvas.", "file", "src", col(0), row(2));
 
-// ── src/components/ (9 files, 2-column grid) ───────────────────────────
-const componentsOrigin = { x: 0, y: 9 * STEP_Y };
-addNode("components", "components/", "src/components", "Presentational React components for the canvas, cards, panels, and modals.", "folder", "src", componentsOrigin.x, componentsOrigin.y);
-const componentsCells = grid(componentsOrigin.x, componentsOrigin.y + STEP_Y, 9, 2);
-const componentsFiles = [
-  ["vibe", "VibeArchitect.tsx", "src/components/VibeArchitect.tsx", "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions."],
-  ["nodecard", "NodeCard.tsx", "src/components/NodeCard.tsx", "A single node card: display, edit form, eye/chevron, ports, size measurement."],
-  ["minimap", "Minimap.tsx", "src/components/Minimap.tsx", "Bottom-right overview map: parent fills, edge lines, node rects, viewport."],
-  ["hierarchyp", "HierarchyPanel.tsx", "src/components/HierarchyPanel.tsx", "Right-side tree browser of the scene graph with focus, fold, and visibility."],
-  ["edgelabel", "EdgeLabel.tsx", "src/components/EdgeLabel.tsx", "Inline-editable label rendered on an SVG edge."],
-  ["toolbar", "Toolbar.tsx", "src/components/Toolbar.tsx", "Top toolbar: add node, layout mode, zoom, fit/tidy, run, save, export."],
-  ["statusbar", "StatusBar.tsx", "src/components/StatusBar.tsx", "Bottom bar with rotating usage hints and node/edge counts."],
-  ["btn", "Btn.tsx", "src/components/Btn.tsx", "Styled button primitive used across the toolbar and cards."],
-  ["modals", "modals/", "src/components/modals", "Overlay dialogs: prompt export, save/load, and ingestion.", "folder"],
-];
-componentsFiles.forEach((entry, index) => {
-  const isFolder = entry[4] === "folder";
-  addNode(entry[0], entry[1], entry[2], entry[3], isFolder ? "folder" : "file", "components", componentsCells[index].x, componentsCells[index].y);
-});
+// ── Row 3: the canvas hub ──────────────────────────────────────────────
+addNode("vibe", "VibeArchitect.tsx", "src/components/VibeArchitect.tsx", "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.", "file", "components", col(0), row(3));
 
-// ── src/components/modals/ (4 files, 2-column grid) ────────────────────
-const modalsNode = nodes.find(node => node.id === "modals");
-const modalsCells = grid(modalsNode.x, modalsNode.y + STEP_Y, 4, 2);
-const modalsFiles = [
-  ["modalshell", "ModalShell.tsx", "src/components/modals/ModalShell.tsx", "Shared modal chrome: backdrop, centered panel, close handling."],
-  ["promptmodal", "PromptModal.tsx", "src/components/modals/PromptModal.tsx", "Shows the exported architecture prompt with copy-to-clipboard."],
-  ["saveloadmodal", "SaveLoadModal.tsx", "src/components/modals/SaveLoadModal.tsx", "Save the graph to a JSON file and load one back."],
-  ["ingestmodal", "IngestModal.tsx", "src/components/modals/IngestModal.tsx", "Pick a directory to ingest as a graph of files and import edges."],
-];
-modalsFiles.forEach((entry, index) => addNode(entry[0], entry[1], entry[2], entry[3], "file", "modals", modalsCells[index].x, modalsCells[index].y));
+// ── Row 4: the two big clusters ────────────────────────────────────────
+addNode("components", "components/", "src/components", "Presentational React components for the canvas, cards, panels, and modals.", "folder", "src", col(0), row(4));
+addNode("hooks", "hooks/", "src/hooks", "React hooks that wrap canvas interaction, sizing, zoom, and double-tap.", "folder", "src", col(2), row(4));
 
-// ── test/ (2 files) ────────────────────────────────────────────────────
-const testCells = grid(3 * STEP_X, STEP_Y, 2, 1);
-addNode("mobiletest", "mobile.test.tsx", "test/mobile.test.tsx", "Synthetic-pointer gesture suite: pan, pinch, drag, tap, edges, hierarchy.", "file", "test", testCells[0].x, testCells[0].y);
-addNode("layouttest", "layout.test.tsx", "test/layout.test.tsx", "Layout metrics probe: toolbar wrap, touch targets, minimap, panel gaps.", "file", "test", testCells[1].x, testCells[1].y);
+// ── Row 5: component cards + hooks (all import only from below) ────────
+addNode("nodecard", "NodeCard.tsx", "src/components/NodeCard.tsx", "A single node card: display, edit form, eye/chevron, ports, size measurement.", "file", "components", col(0), row(5));
+addNode("minimap", "Minimap.tsx", "src/components/Minimap.tsx", "Bottom-right overview map: parent fills, edge lines, node rects, viewport.", "file", "components", col(1), row(5));
+addNode("hierarchyp", "HierarchyPanel.tsx", "src/components/HierarchyPanel.tsx", "Right-side tree browser of the scene graph with focus, fold, and visibility.", "file", "components", col(2), row(5));
+addNode("edgelabel", "EdgeLabel.tsx", "src/components/EdgeLabel.tsx", "Inline-editable label rendered on an SVG edge.", "file", "components", col(3), row(5));
+addNode("usecanvassize", "useCanvasSize.ts", "src/hooks/useCanvasSize.ts", "Tracks the canvas element's width/height with a ResizeObserver.", "file", "hooks", col(4), row(5));
+addNode("usewheelzoom", "useWheelZoom.ts", "src/hooks/useWheelZoom.ts", "Scroll-wheel zoom centered on the cursor.", "file", "hooks", col(5), row(5));
+
+// ── Row 6: remaining components + hooks ────────────────────────────────
+addNode("toolbar", "Toolbar.tsx", "src/components/Toolbar.tsx", "Top toolbar: add node, layout mode, zoom, fit/tidy, run, save, export.", "file", "components", col(0), row(6));
+addNode("statusbar", "StatusBar.tsx", "src/components/StatusBar.tsx", "Bottom bar with rotating usage hints and node/edge counts.", "file", "components", col(1), row(6));
+addNode("useinteraction", "useCanvasInteraction.ts", "src/hooks/useCanvasInteraction.ts", "Pointer logic for panning, node dragging, and edge drafting.", "file", "hooks", col(4), row(6));
+
+// ── Row 7: leaf components + the modal/lib folders ─────────────────────
+addNode("btn", "Btn.tsx", "src/components/Btn.tsx", "Styled button primitive used across the toolbar and cards.", "file", "components", col(0), row(7));
+addNode("usedoubletap", "useDoubleTap.ts", "src/hooks/useDoubleTap.ts", "Detects a double-tap/click to trigger edit.", "file", "hooks", col(1), row(7));
+addNode("modals", "modals/", "src/components/modals", "Overlay dialogs: prompt export, save/load, and ingestion.", "folder", "components", col(2), row(7));
+addNode("lib", "lib/", "src/lib", "Framework-free core: domain types, geometry, graph algorithms, scene graph, and I/O.", "folder", "src", col(4), row(7));
+
+// ── Row 8: modal cards + top lib modules ───────────────────────────────
+addNode("promptmodal", "PromptModal.tsx", "src/components/modals/PromptModal.tsx", "Shows the exported architecture prompt with copy-to-clipboard.", "file", "modals", col(2), row(8));
+addNode("saveloadmodal", "SaveLoadModal.tsx", "src/components/modals/SaveLoadModal.tsx", "Save the graph to a JSON file and load one back.", "file", "modals", col(3), row(8));
+addNode("ingestmodal", "IngestModal.tsx", "src/components/modals/IngestModal.tsx", "Pick a directory to ingest as a graph of files and import edges.", "file", "modals", col(4), row(8));
+addNode("agent", "agent.ts", "src/lib/agent.ts", "Per-node code-generation agent: builds a prompt and calls the model.", "file", "lib", col(5), row(8));
+addNode("ingest", "ingest.ts", "src/lib/ingest.ts", "Repository ingestion: reads files, describes them, parses imports into edges.", "file", "lib", col(6), row(8));
+
+// ── Row 9: modal shell + mid lib modules ───────────────────────────────
+addNode("modalshell", "ModalShell.tsx", "src/components/modals/ModalShell.tsx", "Shared modal chrome: backdrop, centered panel, close handling.", "file", "modals", col(2), row(9));
+addNode("geometry", "geometry.ts", "src/lib/geometry.ts", "Canvas geometry: port positions, edge curves, coordinate conversion, bounds.", "file", "lib", col(5), row(9));
+addNode("prompt", "prompt.ts", "src/lib/prompt.ts", "Serializes the graph to an architecture prompt (file layout + modules + deps).", "file", "lib", col(6), row(9));
+
+// ── Row 10: lower lib modules ──────────────────────────────────────────
+addNode("graph", "graph.ts", "src/lib/graph.ts", "Graph algorithms: topological sort and cycle detection.", "file", "lib", col(5), row(10));
+addNode("scenegraph", "sceneGraph.ts", "src/lib/sceneGraph.ts", "Scene-graph ops: parent/child maps, rendered set, subtree ids, reparenting.", "file", "lib", col(6), row(10));
+addNode("filestorage", "fileStorage.ts", "src/lib/fileStorage.ts", "JSON file persistence: save downloads, load parses and normalizes snapshots.", "file", "lib", col(7), row(10));
+
+// ── Row 11: deep lib modules ───────────────────────────────────────────
+addNode("layout", "layout.ts", "src/lib/layout.ts", "DAG layout: assigns x/y so dependencies flow top to bottom.", "file", "lib", col(5), row(11));
+addNode("ids", "ids.ts", "src/lib/ids.ts", "Unique id generation for nodes and edges.", "file", "lib", col(6), row(11));
+
+// ── Row 12: leaf lib modules ───────────────────────────────────────────
+addNode("anthropic", "anthropic.ts", "src/lib/anthropic.ts", "Thin client for the Anthropic messages API.", "file", "lib", col(5), row(12));
+addNode("constants", "constants.ts", "src/lib/constants.ts", "Shared constants: card sizes, fonts, type colors, group colors.", "file", "lib", col(6), row(12));
+
+// ── Row 13: the foundation ─────────────────────────────────────────────
+addNode("types", "types.ts", "src/lib/types.ts", "Domain types: GraphNode, GraphEdge, GraphSnapshot, Points, Bounds, NodeSize.", "file", "lib", col(6), row(13));
 
 // ── Import edges (from the real source) ────────────────────────────────
 // Entry chain

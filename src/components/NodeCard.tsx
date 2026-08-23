@@ -253,22 +253,22 @@ function AgentStatusColor(status: GraphNode["agentStatus"]): string {
   return "transparent";
 }
 
-/** Output port (right) starts an edge; input port (left) ends one. */
+/** Output port (bottom) starts an edge; input port (top) ends one. */
 function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardProps) {
   const base: CSSProperties = {
-    position: "absolute", top: "50%", transform: "translateY(-50%)",
+    position: "absolute", left: "50%", transform: "translateX(-50%)",
     width: 18, height: 18, borderRadius: "50%", background: colors.dot,
     border: "2px solid #111", cursor: "crosshair", zIndex: 20, touchAction: "none",
   };
   return (
     <>
       <div
-        style={{ ...base, right: -9 }}
+        style={{ ...base, bottom: -9 }}
         onPointerDown={event => { event.stopPropagation(); props.onStartEdge(node.id, event); }}
         title="Drag to connect"
       />
       <div
-        style={{ ...base, left: -9, opacity: 0.5 }}
+        style={{ ...base, top: -9, opacity: 0.5 }}
         onPointerUp={event => { event.stopPropagation(); props.onEndEdge(node.id); }}
       />
     </>

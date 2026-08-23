@@ -20,7 +20,8 @@ function SortKeyOf(node: GraphNode): string {
 }
 
 /**
- * Lay out all nodes in a left-to-right, top-to-bottom DAG. Cycles are
+ * Lay out all nodes as a top-to-bottom DAG: each layer is a horizontal
+ * row, and edges flow downward from a layer to the next. Cycles are
  * tolerated. Hierarchy (parent/child) does not affect positioning — nodes
  * keep free world coordinates.
  */

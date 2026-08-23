@@ -25,23 +25,24 @@ export function CenterOf(node: GraphNode, size?: NodeSize): Point {
   return { x: node.x + widthOf(size) / 2, y: node.y + heightOf(size) / 2 };
 }
 
-/** Output port: right edge, vertically centered. */
+/** Output port: bottom edge, horizontally centered. */
 export function PortOut(node: GraphNode, size?: NodeSize): Point {
-  return { x: node.x + widthOf(size), y: node.y + heightOf(size) / 2 };
+  return { x: node.x + widthOf(size) / 2, y: node.y + heightOf(size) };
 }
 
-/** Input port: left edge, vertically centered. */
+/** Input port: top edge, horizontally centered. */
 export function PortIn(node: GraphNode, size?: NodeSize): Point {
-  return { x: node.x, y: node.y + heightOf(size) / 2 };
+  return { x: node.x + widthOf(size) / 2, y: node.y };
 }
 
 /**
- * Cubic bezier path between two ports. Control point distance grows with
- * horizontal span (capped) so long connections curve wider.
+ * Cubic bezier path between two ports. Edges flow top to bottom, so the
+ * control points extend vertically; the distance grows with the vertical
+ * span (capped) so long connections curve wider.
  */
 export function EdgePathFromPoints(from: Point, to: Point): string {
-  const controlDistance = Math.max(50, Math.min(Math.abs(to.x - from.x) * 0.5, 200));
-  return `M${from.x},${from.y} C${from.x + controlDistance},${from.y} ${to.x - controlDistance},${to.y} ${to.x},${to.y}`;
+  const controlDistance = Math.max(50, Math.min(Math.abs(to.y - from.y) * 0.5, 200));
+  return `M${from.x},${from.y} C${from.x},${from.y + controlDistance} ${to.x},${to.y - controlDistance} ${to.x},${to.y}`;
 }
 
 /** SVG path for an edge between two nodes, using their ports. */
