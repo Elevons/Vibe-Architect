@@ -106,6 +106,7 @@ export function VibeArchitect() {
 
   const nodeMap = useMemo(() => BuildNodeMap(nodes), [nodes]);
   const rendered = useMemo(() => ComputeRenderedSet(nodes), [nodes]);
+  const groups = useMemo(() => computeGroups(nodes, rendered, nodeSizes), [nodes, rendered, nodeSizes]);
 
   const addNode = (type: NodeType = "file"): void => {
     const id = CreateUniqueId("n");
@@ -355,7 +356,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, pointerEvents: "none",
         }}>
-          {renderParentBackgrounds(nodes, rendered, nodeSizes, handleDragStart)}
+          {renderGroupBoxes(groups)}
         </div>
 
         {/* SVG edges (scaled) */}
@@ -377,6 +378,10 @@ export function VibeArchitect() {
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
         }}>
           {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
+          {/* Group drag handles — rendered after the cards in the same layer so a
+              handle is always painted above the cards (never occluded) and is
+              grabbable. */}
+          {renderGroupHandles(groups, handleDragStart)}
         </div>
 
         {nodes.length === 0 && (
@@ -473,15 +478,13 @@ function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promi
   }));
 }
 
-/** Dashed fill behind each rendered parent, sized to its rendered children. */
-function renderParentBackgrounds(
-  nodes: GraphNode[],
-  rendered: Set<string>,
-  nodeSizes: Record<string, NodeSize>,
-  handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void,
-): ReactElement[] {
+/** A folder's grouping box: its id, the bounds wrapping its rendered children, and its color. */
+type GroupBox = { id: string; bounds: { x: number; y: number; w: number; h: number }; color: string };
+
+/** Compute the grouping boxes for every rendered folder that has rendered children. */
+function computeGroups(nodes: GraphNode[], rendered: Set<string>, nodeSizes: Record<string, NodeSize>): GroupBox[] {
   const childrenMap = BuildChildrenMap(nodes);
-  const backgrounds: ReactElement[] = [];
+  const groups: GroupBox[] = [];
   let colorIndex = 0;
   for (const node of nodes) {
     if (!rendered.has(node.id)) {
@@ -496,36 +499,49 @@ function renderParentBackgrounds(
     }
     const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length];
     colorIndex += 1;
-    const dashedBorder = `1px dashed ${color.replace("30", "70")}`;
-    backgrounds.push(
-      <div
-        key={`bg-${node.id}`}
-        style={{
-          position: "absolute", left: bounds.x, top: bounds.y, width: bounds.w, height: bounds.h,
-          background: color, border: dashedBorder,
-          borderRadius: 10, pointerEvents: "none",
-        }}
-      />,
-      // A grip handle pinned to the top-left corner of the grouping box. Grabbing
-      // it starts a group drag (moves the folder and its whole subtree), exactly
-      // like dragging the folder's header bar.
-      <div
-        key={`handle-${node.id}`}
-        title="Drag to move the whole group"
-        onPointerDown={event => { event.stopPropagation(); handleDragStart(event, node.id, true); }}
-        style={{
-          position: "absolute", left: bounds.x + 6, top: bounds.y + 6,
-          width: 22, height: 22, borderRadius: 5, cursor: "grab", touchAction: "none",
-          userSelect: "none", pointerEvents: "auto",
-          background: "#16161c", border: dashedBorder,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONT, fontSize: 10, color: "#aab", fontWeight: 700,
-        }}>
-        ⠿
-      </div>,
-    );
+    groups.push({ id: node.id, bounds, color });
   }
-  return backgrounds;
+  return groups;
+}
+
+/** Dashed fill behind each rendered parent, sized to its rendered children. */
+function renderGroupBoxes(groups: GroupBox[]): ReactElement[] {
+  return groups.map(group => (
+    <div
+      key={`bg-${group.id}`}
+      style={{
+        position: "absolute", left: group.bounds.x, top: group.bounds.y, width: group.bounds.w, height: group.bounds.h,
+        background: group.color, border: `1px dashed ${group.color.replace("30", "70")}`,
+        borderRadius: 10, pointerEvents: "none",
+      }}
+    />
+  ));
+}
+
+/** Grip handles pinned to each group box's top-left corner. Rendered in a layer
+ *  above the cards so they are never occluded and always grabbable. Grabbing one
+ *  starts a group drag (moves the folder and its whole subtree), like the header bar. */
+function renderGroupHandles(
+  groups: GroupBox[],
+  handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void,
+): ReactElement[] {
+  return groups.map(group => (
+    <div
+      key={`handle-${group.id}`}
+      title="Drag to move the whole group"
+      onPointerDown={event => { event.stopPropagation(); handleDragStart(event, group.id, true); }}
+      style={{
+        position: "absolute", left: group.bounds.x + 6, top: group.bounds.y + 6,
+        width: 24, height: 24, borderRadius: 6, cursor: "grab", touchAction: "none",
+        userSelect: "none", pointerEvents: "auto", zIndex: 30,
+        background: "#16161c", border: `1.5px solid ${group.color.slice(0, 7)}`,
+        boxShadow: "0 2px 8px #000a",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: FONT, fontSize: 12, color: "#e8e8f0", fontWeight: 700,
+      }}>
+      ⠿
+    </div>
+  ));
 }
 
 /** True when the node has at least one rendered direct child. */
