@@ -112,9 +112,11 @@ when everything works.
 
 ## Example graph
 
-`examples/vibe-architect.json` models this project itself: 39 nodes (6 folders,
-33 files) and 56 import edges, laid out in clusters under each folder. Load it
-via **Save/Load → load** to open it on the canvas. Regenerate it with:
+`examples/vibe-architect.json` models this project itself: 48 nodes (8 folders,
+40 files) and 72 import edges, laid out in clusters under each folder —
+including `examples/` and `scripts/`, so the graph contains a card for the
+snapshot file itself and for the script that generates it. Load it via
+**Save/Load → load** to open it on the canvas. Regenerate it with:
 
 ```bash
 node scripts/make-example.mjs

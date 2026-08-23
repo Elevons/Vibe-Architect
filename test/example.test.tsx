@@ -25,8 +25,8 @@ async function run(): Promise<void> {
   }
 
   const { nodes, edges } = snapshot;
-  pass("node count", nodes.length === 39, `got ${nodes.length}`);
-  pass("edge count", edges.length === 56, `got ${edges.length}`);
+  pass("node count", nodes.length === 48, `got ${nodes.length}`);
+  pass("edge count", edges.length === 72, `got ${edges.length}`);
   pass("mode", snapshot.mode === "parallel", snapshot.mode);
 
   const ids = new Set(nodes.map(node => node.id));
@@ -56,10 +56,10 @@ async function run(): Promise<void> {
 
   const roots = nodes.filter(node => node.parentId === null);
   const rootNames = roots.map(node => node.name).sort();
-  pass("root folders are src/ and test/", JSON.stringify(rootNames) === JSON.stringify(["src/", "test/"]), rootNames.join(", "));
+  pass("root folders are src/, test/, examples/, scripts/", JSON.stringify(rootNames) === JSON.stringify(["examples/", "scripts/", "src/", "test/"]), rootNames.join(", "));
 
   const folders = nodes.filter(node => node.type === "folder");
-  pass("folder count", folders.length === 6, `got ${folders.length}`);
+  pass("folder count", folders.length === 8, `got ${folders.length}`);
 
   const rendered = ComputeRenderedSet(nodes);
   pass("every node renders", rendered.size === nodes.length, `rendered ${rendered.size}/${nodes.length}`);
