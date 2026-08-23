@@ -30,6 +30,7 @@ npm run typecheck  # tsc --noEmit only
 - **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, parents each file under an auto-created (collapsed) folder node, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
+- **Example graph** — `examples/vibe-architect.json` is a loadable snapshot of this project's own structure (folders, files, and real import edges); open it via Save/Load → load to see the app model itself
 - **Export Prompt** — serialize the graph to markdown (structure tree, file layout, modules, dependencies) and copy it to the clipboard; the prompt tells the agent exactly where each file goes and to create any folders or files that don't exist yet (edges into folders are treated as grouping, not dependencies)
 - **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-connect edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
 
@@ -76,7 +77,15 @@ test/
 ├── mobile.test.html          Headless touch-gesture test harness
 ├── mobile.test.tsx           Drives the app with synthetic touch PointerEvents
 ├── layout.test.html          Layout metrics probe (mobile + desktop)
-└── layout.test.tsx           Reports toolbar/targets/minimap/root metrics
+├── layout.test.tsx           Reports toolbar/targets/minimap/root metrics
+├── example.test.html         Example-graph load harness
+└── example.test.tsx          Loads examples/vibe-architect.json through the app pipeline
+
+examples/
+└── vibe-architect.json       Loadable snapshot of this project's own structure
+
+scripts/
+└── make-example.mjs          Regenerates examples/vibe-architect.json
 ```
 
 ## Mobile gesture tests
@@ -94,6 +103,25 @@ google-chrome --headless --disable-gpu --window-size=390,844 \
 
 All gestures are reported as PASS/FAIL lines; the page title is `ALL PASS`
 when everything works.
+
+## Example graph
+
+`examples/vibe-architect.json` models this project itself: 39 nodes (6 folders,
+33 files) and 56 import edges, laid out in clusters under each folder. Load it
+via **Save/Load → load** to open it on the canvas. Regenerate it with:
+
+```bash
+node scripts/make-example.mjs
+```
+
+Its well-formedness (counts, edge/parent resolution, no cycles, all nodes
+render) is checked by the example test:
+
+```bash
+google-chrome --headless --disable-gpu --window-size=1200,800 \
+  --virtual-time-budget=15000 --dump-dom \
+  http://localhost:5173/test/example.test.html | grep -E "PASS|FAIL"
+```
 
 ## Notes
 

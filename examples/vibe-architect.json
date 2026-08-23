@@ -1,0 +1,889 @@
+{
+  "nodes": [
+    {
+      "id": "src",
+      "name": "src/",
+      "path": "src",
+      "desc": "Application source: entry point, components, hooks, and the core library.",
+      "type": "folder",
+      "parentId": null,
+      "x": 0,
+      "y": 0,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "test",
+      "name": "test/",
+      "path": "test",
+      "desc": "Headless-Chrome gesture and layout tests that drive the real app with synthetic pointer events.",
+      "type": "folder",
+      "parentId": null,
+      "x": 1110,
+      "y": 0,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "main",
+      "name": "main.tsx",
+      "path": "src/main.tsx",
+      "desc": "React entry point: mounts <App/> into #root.",
+      "type": "file",
+      "parentId": "src",
+      "x": 0,
+      "y": 190,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "app",
+      "name": "App.tsx",
+      "path": "src/App.tsx",
+      "desc": "Top-level shell that renders the VibeArchitect canvas.",
+      "type": "file",
+      "parentId": "src",
+      "x": 370,
+      "y": 190,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "viteenv",
+      "name": "vite-env.d.ts",
+      "path": "src/vite-env.d.ts",
+      "desc": "Vite client type references for the build.",
+      "type": "file",
+      "parentId": "src",
+      "x": 740,
+      "y": 190,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "lib",
+      "name": "lib/",
+      "path": "src/lib",
+      "desc": "Framework-free core: domain types, geometry, graph algorithms, scene graph, and I/O.",
+      "type": "folder",
+      "parentId": "src",
+      "x": 0,
+      "y": 380,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "types",
+      "name": "types.ts",
+      "path": "src/lib/types.ts",
+      "desc": "Domain types: GraphNode, GraphEdge, GraphSnapshot, Points, Bounds, NodeSize.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 570,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "constants",
+      "name": "constants.ts",
+      "path": "src/lib/constants.ts",
+      "desc": "Shared constants: card sizes, fonts, type colors, group colors.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 570,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "ids",
+      "name": "ids.ts",
+      "path": "src/lib/ids.ts",
+      "desc": "Unique id generation for nodes and edges.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 760,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "geometry",
+      "name": "geometry.ts",
+      "path": "src/lib/geometry.ts",
+      "desc": "Canvas geometry: port positions, edge curves, coordinate conversion, bounds.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 760,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "graph",
+      "name": "graph.ts",
+      "path": "src/lib/graph.ts",
+      "desc": "Graph algorithms: topological sort and cycle detection.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 950,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "scenegraph",
+      "name": "sceneGraph.ts",
+      "path": "src/lib/sceneGraph.ts",
+      "desc": "Scene-graph ops: parent/child maps, rendered set, subtree ids, reparenting.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 950,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "layout",
+      "name": "layout.ts",
+      "path": "src/lib/layout.ts",
+      "desc": "DAG layout: assigns x/y so dependencies flow left to right.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 1140,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "anthropic",
+      "name": "anthropic.ts",
+      "path": "src/lib/anthropic.ts",
+      "desc": "Thin client for the Anthropic messages API.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 1140,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "agent",
+      "name": "agent.ts",
+      "path": "src/lib/agent.ts",
+      "desc": "Per-node code-generation agent: builds a prompt and calls the model.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 1330,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "ingest",
+      "name": "ingest.ts",
+      "path": "src/lib/ingest.ts",
+      "desc": "Repository ingestion: reads files, describes them, parses imports into edges.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 1330,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "prompt",
+      "name": "prompt.ts",
+      "path": "src/lib/prompt.ts",
+      "desc": "Serializes the graph to an architecture prompt (file layout + modules + deps).",
+      "type": "file",
+      "parentId": "lib",
+      "x": 0,
+      "y": 1520,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "filestorage",
+      "name": "fileStorage.ts",
+      "path": "src/lib/fileStorage.ts",
+      "desc": "JSON file persistence: save downloads, load parses and normalizes snapshots.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 370,
+      "y": 1520,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "hooks",
+      "name": "hooks/",
+      "path": "src/hooks",
+      "desc": "React hooks that wrap canvas interaction, sizing, zoom, and double-tap.",
+      "type": "folder",
+      "parentId": "src",
+      "x": 740,
+      "y": 380,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "usecanvassize",
+      "name": "useCanvasSize.ts",
+      "path": "src/hooks/useCanvasSize.ts",
+      "desc": "Tracks the canvas element's width/height with a ResizeObserver.",
+      "type": "file",
+      "parentId": "hooks",
+      "x": 740,
+      "y": 570,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "usewheelzoom",
+      "name": "useWheelZoom.ts",
+      "path": "src/hooks/useWheelZoom.ts",
+      "desc": "Scroll-wheel zoom centered on the cursor.",
+      "type": "file",
+      "parentId": "hooks",
+      "x": 1110,
+      "y": 570,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "useinteraction",
+      "name": "useCanvasInteraction.ts",
+      "path": "src/hooks/useCanvasInteraction.ts",
+      "desc": "Pointer logic for panning, node dragging, and edge drafting.",
+      "type": "file",
+      "parentId": "hooks",
+      "x": 740,
+      "y": 760,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "usedoubletap",
+      "name": "useDoubleTap.ts",
+      "path": "src/hooks/useDoubleTap.ts",
+      "desc": "Detects a double-tap/click to trigger edit.",
+      "type": "file",
+      "parentId": "hooks",
+      "x": 1110,
+      "y": 760,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "components",
+      "name": "components/",
+      "path": "src/components",
+      "desc": "Presentational React components for the canvas, cards, panels, and modals.",
+      "type": "folder",
+      "parentId": "src",
+      "x": 0,
+      "y": 1710,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "vibe",
+      "name": "VibeArchitect.tsx",
+      "path": "src/components/VibeArchitect.tsx",
+      "desc": "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.",
+      "type": "file",
+      "parentId": "components",
+      "x": 0,
+      "y": 1900,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "nodecard",
+      "name": "NodeCard.tsx",
+      "path": "src/components/NodeCard.tsx",
+      "desc": "A single node card: display, edit form, eye/chevron, ports, size measurement.",
+      "type": "file",
+      "parentId": "components",
+      "x": 370,
+      "y": 1900,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "minimap",
+      "name": "Minimap.tsx",
+      "path": "src/components/Minimap.tsx",
+      "desc": "Bottom-right overview map: parent fills, edge lines, node rects, viewport.",
+      "type": "file",
+      "parentId": "components",
+      "x": 0,
+      "y": 2090,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "hierarchyp",
+      "name": "HierarchyPanel.tsx",
+      "path": "src/components/HierarchyPanel.tsx",
+      "desc": "Right-side tree browser of the scene graph with focus, fold, and visibility.",
+      "type": "file",
+      "parentId": "components",
+      "x": 370,
+      "y": 2090,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "edgelabel",
+      "name": "EdgeLabel.tsx",
+      "path": "src/components/EdgeLabel.tsx",
+      "desc": "Inline-editable label rendered on an SVG edge.",
+      "type": "file",
+      "parentId": "components",
+      "x": 0,
+      "y": 2280,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "toolbar",
+      "name": "Toolbar.tsx",
+      "path": "src/components/Toolbar.tsx",
+      "desc": "Top toolbar: add node, layout mode, zoom, fit/tidy, run, save, export.",
+      "type": "file",
+      "parentId": "components",
+      "x": 370,
+      "y": 2280,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "statusbar",
+      "name": "StatusBar.tsx",
+      "path": "src/components/StatusBar.tsx",
+      "desc": "Bottom bar with rotating usage hints and node/edge counts.",
+      "type": "file",
+      "parentId": "components",
+      "x": 0,
+      "y": 2470,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "btn",
+      "name": "Btn.tsx",
+      "path": "src/components/Btn.tsx",
+      "desc": "Styled button primitive used across the toolbar and cards.",
+      "type": "file",
+      "parentId": "components",
+      "x": 370,
+      "y": 2470,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "modals",
+      "name": "modals/",
+      "path": "src/components/modals",
+      "desc": "Overlay dialogs: prompt export, save/load, and ingestion.",
+      "type": "folder",
+      "parentId": "components",
+      "x": 0,
+      "y": 2660,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "modalshell",
+      "name": "ModalShell.tsx",
+      "path": "src/components/modals/ModalShell.tsx",
+      "desc": "Shared modal chrome: backdrop, centered panel, close handling.",
+      "type": "file",
+      "parentId": "modals",
+      "x": 0,
+      "y": 2850,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "promptmodal",
+      "name": "PromptModal.tsx",
+      "path": "src/components/modals/PromptModal.tsx",
+      "desc": "Shows the exported architecture prompt with copy-to-clipboard.",
+      "type": "file",
+      "parentId": "modals",
+      "x": 370,
+      "y": 2850,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "saveloadmodal",
+      "name": "SaveLoadModal.tsx",
+      "path": "src/components/modals/SaveLoadModal.tsx",
+      "desc": "Save the graph to a JSON file and load one back.",
+      "type": "file",
+      "parentId": "modals",
+      "x": 0,
+      "y": 3040,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "ingestmodal",
+      "name": "IngestModal.tsx",
+      "path": "src/components/modals/IngestModal.tsx",
+      "desc": "Pick a directory to ingest as a graph of files and import edges.",
+      "type": "file",
+      "parentId": "modals",
+      "x": 370,
+      "y": 3040,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "mobiletest",
+      "name": "mobile.test.tsx",
+      "path": "test/mobile.test.tsx",
+      "desc": "Synthetic-pointer gesture suite: pan, pinch, drag, tap, edges, hierarchy.",
+      "type": "file",
+      "parentId": "test",
+      "x": 1110,
+      "y": 190,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "layouttest",
+      "name": "layout.test.tsx",
+      "path": "test/layout.test.tsx",
+      "desc": "Layout metrics probe: toolbar wrap, touch targets, minimap, panel gaps.",
+      "type": "file",
+      "parentId": "test",
+      "x": 1110,
+      "y": 380,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "main",
+      "to": "app",
+      "label": "mounts"
+    },
+    {
+      "id": "e2",
+      "from": "app",
+      "to": "vibe",
+      "label": "renders"
+    },
+    {
+      "id": "e3",
+      "from": "vibe",
+      "to": "nodecard",
+      "label": "renders"
+    },
+    {
+      "id": "e4",
+      "from": "vibe",
+      "to": "minimap",
+      "label": "renders"
+    },
+    {
+      "id": "e5",
+      "from": "vibe",
+      "to": "hierarchyp",
+      "label": "renders"
+    },
+    {
+      "id": "e6",
+      "from": "vibe",
+      "to": "edgelabel",
+      "label": "renders"
+    },
+    {
+      "id": "e7",
+      "from": "vibe",
+      "to": "toolbar",
+      "label": "renders"
+    },
+    {
+      "id": "e8",
+      "from": "vibe",
+      "to": "statusbar",
+      "label": "renders"
+    },
+    {
+      "id": "e9",
+      "from": "vibe",
+      "to": "promptmodal",
+      "label": "opens"
+    },
+    {
+      "id": "e10",
+      "from": "vibe",
+      "to": "saveloadmodal",
+      "label": "opens"
+    },
+    {
+      "id": "e11",
+      "from": "vibe",
+      "to": "ingestmodal",
+      "label": "opens"
+    },
+    {
+      "id": "e12",
+      "from": "vibe",
+      "to": "useinteraction",
+      "label": "uses"
+    },
+    {
+      "id": "e13",
+      "from": "vibe",
+      "to": "usecanvassize",
+      "label": "uses"
+    },
+    {
+      "id": "e14",
+      "from": "vibe",
+      "to": "usewheelzoom",
+      "label": "uses"
+    },
+    {
+      "id": "e15",
+      "from": "vibe",
+      "to": "agent",
+      "label": "runs"
+    },
+    {
+      "id": "e16",
+      "from": "vibe",
+      "to": "geometry",
+      "label": "layout"
+    },
+    {
+      "id": "e17",
+      "from": "vibe",
+      "to": "graph",
+      "label": "toposort"
+    },
+    {
+      "id": "e18",
+      "from": "vibe",
+      "to": "ids",
+      "label": "ids"
+    },
+    {
+      "id": "e19",
+      "from": "vibe",
+      "to": "layout",
+      "label": "tidy"
+    },
+    {
+      "id": "e20",
+      "from": "vibe",
+      "to": "scenegraph",
+      "label": "ops"
+    },
+    {
+      "id": "e21",
+      "from": "nodecard",
+      "to": "btn",
+      "label": "uses"
+    },
+    {
+      "id": "e22",
+      "from": "nodecard",
+      "to": "usedoubletap",
+      "label": "uses"
+    },
+    {
+      "id": "e23",
+      "from": "nodecard",
+      "to": "scenegraph",
+      "label": "ops"
+    },
+    {
+      "id": "e24",
+      "from": "minimap",
+      "to": "geometry",
+      "label": "bounds"
+    },
+    {
+      "id": "e25",
+      "from": "minimap",
+      "to": "scenegraph",
+      "label": "children"
+    },
+    {
+      "id": "e26",
+      "from": "hierarchyp",
+      "to": "scenegraph",
+      "label": "tree"
+    },
+    {
+      "id": "e27",
+      "from": "edgelabel",
+      "to": "usedoubletap",
+      "label": "uses"
+    },
+    {
+      "id": "e28",
+      "from": "toolbar",
+      "to": "btn",
+      "label": "uses"
+    },
+    {
+      "id": "e29",
+      "from": "statusbar",
+      "to": "constants",
+      "label": "hints"
+    },
+    {
+      "id": "e30",
+      "from": "useinteraction",
+      "to": "constants",
+      "label": "sizes"
+    },
+    {
+      "id": "e31",
+      "from": "usewheelzoom",
+      "to": "constants",
+      "label": "zoom"
+    },
+    {
+      "id": "e32",
+      "from": "constants",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e33",
+      "from": "geometry",
+      "to": "constants",
+      "label": "sizes"
+    },
+    {
+      "id": "e34",
+      "from": "geometry",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e35",
+      "from": "graph",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e36",
+      "from": "scenegraph",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e37",
+      "from": "layout",
+      "to": "constants",
+      "label": "sizes"
+    },
+    {
+      "id": "e38",
+      "from": "layout",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e39",
+      "from": "agent",
+      "to": "anthropic",
+      "label": "calls"
+    },
+    {
+      "id": "e40",
+      "from": "agent",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e41",
+      "from": "ingest",
+      "to": "agent",
+      "label": "describes"
+    },
+    {
+      "id": "e42",
+      "from": "ingest",
+      "to": "ids",
+      "label": "ids"
+    },
+    {
+      "id": "e43",
+      "from": "ingest",
+      "to": "layout",
+      "label": "lays out"
+    },
+    {
+      "id": "e44",
+      "from": "ingest",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e45",
+      "from": "prompt",
+      "to": "graph",
+      "label": "toposort"
+    },
+    {
+      "id": "e46",
+      "from": "prompt",
+      "to": "scenegraph",
+      "label": "tree"
+    },
+    {
+      "id": "e47",
+      "from": "prompt",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e48",
+      "from": "filestorage",
+      "to": "types",
+      "label": "typed"
+    },
+    {
+      "id": "e49",
+      "from": "promptmodal",
+      "to": "modalshell",
+      "label": "wraps"
+    },
+    {
+      "id": "e50",
+      "from": "promptmodal",
+      "to": "prompt",
+      "label": "builds"
+    },
+    {
+      "id": "e51",
+      "from": "saveloadmodal",
+      "to": "modalshell",
+      "label": "wraps"
+    },
+    {
+      "id": "e52",
+      "from": "saveloadmodal",
+      "to": "filestorage",
+      "label": "io"
+    },
+    {
+      "id": "e53",
+      "from": "ingestmodal",
+      "to": "modalshell",
+      "label": "wraps"
+    },
+    {
+      "id": "e54",
+      "from": "ingestmodal",
+      "to": "ingest",
+      "label": "runs"
+    },
+    {
+      "id": "e55",
+      "from": "mobiletest",
+      "to": "vibe",
+      "label": "drives"
+    },
+    {
+      "id": "e56",
+      "from": "layouttest",
+      "to": "vibe",
+      "label": "probes"
+    }
+  ],
+  "mode": "parallel"
+}
