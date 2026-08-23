@@ -355,7 +355,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, pointerEvents: "none",
         }}>
-          {renderParentBackgrounds(nodes, rendered, nodeSizes)}
+          {renderParentBackgrounds(nodes, rendered, nodeSizes, handleDragStart)}
         </div>
 
         {/* SVG edges (scaled) */}
@@ -474,7 +474,12 @@ function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promi
 }
 
 /** Dashed fill behind each rendered parent, sized to its rendered children. */
-function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>, nodeSizes: Record<string, NodeSize>): ReactElement[] {
+function renderParentBackgrounds(
+  nodes: GraphNode[],
+  rendered: Set<string>,
+  nodeSizes: Record<string, NodeSize>,
+  handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void,
+): ReactElement[] {
   const childrenMap = BuildChildrenMap(nodes);
   const backgrounds: ReactElement[] = [];
   let colorIndex = 0;
@@ -491,15 +496,33 @@ function renderParentBackgrounds(nodes: GraphNode[], rendered: Set<string>, node
     }
     const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length];
     colorIndex += 1;
+    const dashedBorder = `1px dashed ${color.replace("30", "70")}`;
     backgrounds.push(
       <div
-        key={node.id}
+        key={`bg-${node.id}`}
         style={{
           position: "absolute", left: bounds.x, top: bounds.y, width: bounds.w, height: bounds.h,
-          background: color, border: `1px dashed ${color.replace("30", "70")}`,
+          background: color, border: dashedBorder,
           borderRadius: 10, pointerEvents: "none",
         }}
       />,
+      // A grip handle pinned to the top-left corner of the grouping box. Grabbing
+      // it starts a group drag (moves the folder and its whole subtree), exactly
+      // like dragging the folder's header bar.
+      <div
+        key={`handle-${node.id}`}
+        title="Drag to move the whole group"
+        onPointerDown={event => { event.stopPropagation(); handleDragStart(event, node.id, true); }}
+        style={{
+          position: "absolute", left: bounds.x + 6, top: bounds.y + 6,
+          width: 22, height: 22, borderRadius: 5, cursor: "grab", touchAction: "none",
+          userSelect: "none", pointerEvents: "auto",
+          background: "#16161c", border: dashedBorder,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: FONT, fontSize: 10, color: "#aab", fontWeight: 700,
+        }}>
+        ⠿
+      </div>,
     );
   }
   return backgrounds;

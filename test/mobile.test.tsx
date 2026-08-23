@@ -646,6 +646,61 @@ async function run(): Promise<void> {
     `folder=(+${deltas.folder.x.toFixed(1)},+${deltas.folder.y.toFixed(1)}) file1=(+${deltas.file1.x.toFixed(1)},+${deltas.file1.y.toFixed(1)}) file2=(+${deltas.file2.x.toFixed(1)},+${deltas.file2.y.toFixed(1)}) expected≈(+${expectedDelta.x.toFixed(1)},+${expectedDelta.y.toFixed(1)})`,
   );
 
+  // ── Test 17: dragging the grouping-box handle moves the whole subtree ──
+  // The dashed background box that wraps a folder + its children now carries a
+  // grip handle (⠿) at its top-left corner. Grabbing that handle must move the
+  // folder and every child by the same world delta, just like the header drag.
+  const handle17 = document.querySelector("[title='Drag to move the whole group']") as HTMLElement | null;
+  if (handle17 === null) {
+    throw new Error("grouping-box handle not found (test 17)");
+  }
+  const cards17 = nodeCards();
+  const folderCard17 = cards17.find(card => card.querySelector("[title='Drag to group']") !== null);
+  const fileCards17 = cards17.filter(card => card.querySelector("[title='Drag to group']") === null).slice(-2);
+  if (folderCard17 === undefined || fileCards17.length < 2) {
+    throw new Error(`expected folder + 2 children (test 17), got ${cards17.length} cards`);
+  }
+  const cardWorld17 = (card: HTMLElement): { x: number; y: number } => ({
+    x: parseFloat(card.style.left),
+    y: parseFloat(card.style.top),
+  });
+  const hBefore = {
+    folder: cardWorld17(folderCard17),
+    file1: cardWorld17(fileCards17[0]),
+    file2: cardWorld17(fileCards17[1]),
+  };
+  const handleRect17 = handle17.getBoundingClientRect();
+  const hStartX = handleRect17.left + handleRect17.width / 2;
+  const hStartY = handleRect17.top + handleRect17.height / 2;
+  const hDragScreen = { x: 70, y: 50 };
+  fire(handle17, "pointerdown", hStartX, hStartY, 1);
+  await nextFrame();
+  fire(handle17, "pointermove", hStartX + hDragScreen.x, hStartY + hDragScreen.y, 1);
+  await nextFrame();
+  fire(handle17, "pointerup", hStartX + hDragScreen.x, hStartY + hDragScreen.y, 1);
+  await nextFrame();
+  const hAfter = {
+    folder: cardWorld17(folderCard17),
+    file1: cardWorld17(fileCards17[0]),
+    file2: cardWorld17(fileCards17[1]),
+  };
+  const deltaOf17 = (b: { x: number; y: number }, a: { x: number; y: number }): { x: number; y: number } => ({ x: a.x - b.x, y: a.y - b.y });
+  const deltas17 = {
+    folder: deltaOf17(hBefore.folder, hAfter.folder),
+    file1: deltaOf17(hBefore.file1, hAfter.file1),
+    file2: deltaOf17(hBefore.file2, hAfter.file2),
+  };
+  const zoom17 = parseTransform().zoom;
+  const expectedDelta17 = { x: hDragScreen.x / zoom17, y: hDragScreen.y / zoom17 };
+  const closeTo17 = (actual: { x: number; y: number }): boolean =>
+    Math.abs(actual.x - expectedDelta17.x) < 1 && Math.abs(actual.y - expectedDelta17.y) < 1;
+  const handleMovedTogether = closeTo17(deltas17.folder) && closeTo17(deltas17.file1) && closeTo17(deltas17.file2);
+  pass(
+    "grouping-box handle moves the whole subtree",
+    handleMovedTogether,
+    `folder=(+${deltas17.folder.x.toFixed(1)},+${deltas17.folder.y.toFixed(1)}) file1=(+${deltas17.file1.x.toFixed(1)},+${deltas17.file1.y.toFixed(1)}) file2=(+${deltas17.file2.x.toFixed(1)},+${deltas17.file2.y.toFixed(1)}) expected≈(+${expectedDelta17.x.toFixed(1)},+${expectedDelta17.y.toFixed(1)})`,
+  );
+
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");
   document.title = results.every(line => line.startsWith("PASS")) ? "ALL PASS" : "FAILURES";
