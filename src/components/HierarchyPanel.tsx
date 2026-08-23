@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { FONT, TYPE_COLORS } from "../lib/constants";
-import { BuildChildrenMap } from "../lib/sceneGraph";
+import { BuildChildrenMap, ComputeRenderedSet } from "../lib/sceneGraph";
 import type { GraphNode } from "../lib/types";
 
 /**
@@ -25,6 +25,7 @@ export function HierarchyPanel({ nodes, selected, onSelectAndFocus, onSetVisible
   const [folded, setFolded] = useState<Set<string>>(new Set());
 
   const childrenMap = useMemo(() => BuildChildrenMap(nodes), [nodes]);
+  const rendered = useMemo(() => ComputeRenderedSet(nodes), [nodes]);
   const roots = useMemo(
     () => nodes.filter(node => node.parentId === null),
     [nodes],
@@ -83,6 +84,7 @@ export function HierarchyPanel({ nodes, selected, onSelectAndFocus, onSetVisible
             depth={0}
             nodes={nodes}
             childrenMap={childrenMap}
+            rendered={rendered}
             folded={folded}
             selected={selected}
             onToggleFold={toggleFold}
@@ -105,6 +107,7 @@ interface TreeRowProps {
   depth: number;
   nodes: GraphNode[];
   childrenMap: Map<string, string[]>;
+  rendered: Set<string>;
   folded: Set<string>;
   selected: string | null;
   onToggleFold: (id: string) => void;
@@ -113,7 +116,7 @@ interface TreeRowProps {
 }
 
 function TreeRow(props: TreeRowProps): ReactElement {
-  const { node, depth, childrenMap, folded, selected } = props;
+  const { node, depth, childrenMap, rendered, folded, selected } = props;
   const childIds = childrenMap.get(node.id) ?? [];
   const hasChildren = childIds.length > 0;
   const isFolded = folded.has(node.id);
@@ -129,7 +132,9 @@ function TreeRow(props: TreeRowProps): ReactElement {
           padding: `3px 8px 3px ${8 + depth * 12}px`,
           cursor: "pointer", minHeight: 24, boxSizing: "border-box",
           background: isSelected ? "#818cf822" : "transparent",
-          opacity: node.visible ? 1 : 0.4,
+          // Dimmed whenever the node is not on the canvas: its own eye is
+          // off, an ancestor is hidden, or an ancestor is collapsed.
+          opacity: rendered.has(node.id) ? 1 : 0.4,
         }}
       >
         {hasChildren ? (

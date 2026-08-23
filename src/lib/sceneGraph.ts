@@ -87,29 +87,32 @@ export function IsTuckedAway(nodes: GraphNode[], nodeId: string): boolean {
 
 /**
  * Ids of every node the canvas should render: a node renders when it is
- * visible and no strict ancestor is collapsed. Computed in one pass.
+ * visible, no strict ancestor is hidden, and no strict ancestor is
+ * collapsed. Hiding a parent therefore hides its whole subtree (each
+ * child's own eye flag still applies on top). Computed in one pass.
  */
 export function ComputeRenderedSet(nodes: GraphNode[]): Set<string> {
   const nodeMap = BuildNodeMap(nodes);
   const childrenMap = BuildChildrenMap(nodes);
   const rendered = new Set<string>();
-  const visit = (id: string, tucked: boolean): void => {
+  const visit = (id: string, hidden: boolean, tucked: boolean): void => {
     const node = nodeMap.get(id);
     if (node === undefined) {
       return;
     }
-    if (!tucked && node.visible) {
+    const selfHidden = hidden || !node.visible;
+    if (!selfHidden && !tucked) {
       rendered.add(id);
     }
     for (const childId of childrenMap.get(id) ?? []) {
-      visit(childId, tucked || node.collapsed);
+      visit(childId, selfHidden, tucked || node.collapsed);
     }
   };
   // Roots are true roots plus orphans (parent id missing) — the latter keep
   // their subtrees reachable when data is malformed.
   for (const node of nodes) {
     if (node.parentId === null || !nodeMap.has(node.parentId)) {
-      visit(node.id, false);
+      visit(node.id, false, false);
     }
   }
   return rendered;

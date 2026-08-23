@@ -71,10 +71,13 @@ export function NodeCard(props: NodeCardProps) {
   };
 
   const handlePointerDown = (event: ReactPointerEvent): void => {
+    // Always stop propagation: a press on a card control (button, input…)
+    // must not fall through to the canvas and start a pan / clear the
+    // selection — only a press on the card body selects and drags.
+    event.stopPropagation();
     if (NON_DRAG_TAGS.includes((event.target as HTMLElement).tagName)) {
       return;
     }
-    event.stopPropagation();
     props.onSelect(node.id);
     props.onDragStart(event, node.id);
   };
@@ -191,7 +194,7 @@ function renderCornerControls(node: GraphNode, isParent: boolean, props: NodeCar
       )}
       <button
         style={{ ...buttonStyle, right: 4, opacity: node.visible ? 1 : 0.45 }}
-        title={node.visible ? "Hide node" : "Show node"}
+        title={node.visible ? (isParent ? "Hide node and children" : "Hide node") : "Show node"}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); props.onSetVisible(node.id, !node.visible); }}
       >

@@ -8,9 +8,10 @@ const HINTS = [
   "Pinch or scroll to zoom",
   "Drag to pan",
   "Double-tap node to edit",
-  "👁 eye show/hides a node",
+  "👁 eye hides a node and its subtree",
   "▾ chevron collapses a parent",
   "Drag ● → ● to connect",
+  "Edge into a folder groups the node under it",
   "Double-tap edge label to rename",
 ];
 

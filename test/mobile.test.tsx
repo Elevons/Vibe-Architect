@@ -255,6 +255,112 @@ async function run(): Promise<void> {
   const childRowsAfter = rows().filter(row => row.textContent?.includes("new_file.js")).length;
   pass("hierarchy fold", childRowsAfter === childRowsBefore - 1, `rows ${childRowsBefore} → ${childRowsAfter}`);
 
+  // ── Test 11: an edge into a folder groups the other node under it ──
+  // Re-show file2 via the hierarchy eye (hidden in test 9).
+  const unhideButton = Array.from(rows()[0].querySelectorAll("button")).find(button => button.textContent === "–");
+  if (unhideButton === undefined) {
+    throw new Error("unhide button not found (test 11)");
+  }
+  unhideButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+
+  // Expand the collapsed folder card so its ports are back.
+  const collapsedFolderCard = nodeCards().find(card => card.textContent?.includes("new_folder/"));
+  if (collapsedFolderCard === undefined) {
+    throw new Error("collapsed folder card not found (test 11)");
+  }
+  const expandButton = Array.from(collapsedFolderCard.querySelectorAll("button")).find(button => button.textContent === "Expand ▾");
+  if (expandButton === undefined) {
+    throw new Error("expand button not found on collapsed folder (test 11)");
+  }
+  expandButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+
+  // Drag the folder's output port onto file2's input port.
+  // file2's card was re-created when it came back (test 9 unmounted it),
+  // so re-find it live: it is the selected card (ring from test 8).
+  // Match the folder by its name span — a child's card also contains
+  // "new_folder/" as its parent indicator (⤷ new_folder/).
+  const freshCards = nodeCards();
+  const cardName = (card: HTMLElement): string => card.querySelector("span")?.textContent ?? "";
+  const folderCardNow = freshCards.find(card => cardName(card) === "new_folder/");
+  const file2CardNow = freshCards.find(card => card.style.boxShadow.includes("0px 0px 0px 2px"));
+  if (folderCardNow === undefined || file2CardNow === undefined) {
+    throw new Error("cards not found after expand (test 11)");
+  }
+  const folderOutPort = folderCardNow.querySelector("[title='Drag to connect']") as HTMLElement;
+  const file2InPort = Array.from(file2CardNow.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement;
+  if (folderOutPort === null || file2InPort === undefined) {
+    throw new Error("ports not found for folder grouping drag (test 11)");
+  }
+  const outBox2 = folderOutPort.getBoundingClientRect();
+  const inBox2 = file2InPort.getBoundingClientRect();
+  fire(folderOutPort, "pointerdown", outBox2.left + 5, outBox2.top + 5, 1);
+  await nextFrame();
+  fire(folderOutPort, "pointermove", inBox2.left + 5, inBox2.top + 5, 1);
+  await nextFrame();
+  fire(file2InPort, "pointerup", inBox2.left + 5, inBox2.top + 5, 1);
+  await nextFrame();
+
+  // file2 is now a child of the folder: its row moved under the still-folded
+  // folder branch (2 visible rows → 1), and the new edge is counted.
+  const countsAfter = document.querySelector(".va-counts")?.textContent ?? "";
+  const rowsAfter = rows().length;
+  pass("folder edge groups node", countsAfter.includes("2e") && rowsAfter === 1, `counts=${countsAfter} rows=${rowsAfter} (was 2)`);
+
+  // ── Test 12: hiding a parent hides its whole subtree ──
+  const cardsBefore = nodeCards().length;
+  const folderRow12 = rows().find(row => row.textContent?.includes("new_folder/"));
+  if (folderRow12 === undefined) {
+    throw new Error("folder row not found (test 12)");
+  }
+  const folderEye = Array.from(folderRow12.querySelectorAll("button")).find(button => button.textContent === "👁");
+  if (folderEye === undefined) {
+    throw new Error("eye not found on folder row (test 12)");
+  }
+  folderEye.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const cardsAfterHide = nodeCards().length;
+  const folderRowAfter = rows().find(row => row.textContent?.includes("new_folder/"));
+  if (folderRowAfter === undefined) {
+    throw new Error("folder row vanished after hide (test 12)");
+  }
+  const rowDimmed12 = parseFloat(folderRowAfter.style.opacity) < 1;
+  pass("hiding parent hides subtree", cardsBefore === 3 && cardsAfterHide === 0 && rowDimmed12, `cards ${cardsBefore} → ${cardsAfterHide} dimmed=${rowDimmed12}`);
+
+  // Showing the parent again brings the subtree back.
+  const folderEyeBack = Array.from(folderRowAfter.querySelectorAll("button")).find(button => button.textContent === "–");
+  if (folderEyeBack === undefined) {
+    throw new Error("unhide eye not found on folder row (test 12)");
+  }
+  folderEyeBack.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const cardsAfterShow = nodeCards().length;
+  pass("showing parent restores subtree", cardsAfterShow === cardsBefore, `cards ${cardsAfterShow} (was ${cardsBefore})`);
+
+  // ── Test 13: pressing a card button must not fall through to the canvas ──
+  // (a leaked pointerdown would start a pan and clear the selection)
+  const panBefore = worldLayer().style.transform;
+  const selectedCard13 = nodeCards().find(card => card.style.boxShadow.includes("0px 0px 0px 2px"));
+  if (selectedCard13 === undefined) {
+    throw new Error("no selected card (test 13)");
+  }
+  const editButton = Array.from(selectedCard13.querySelectorAll("button")).find(button => button.textContent === "Edit");
+  if (editButton === undefined) {
+    throw new Error("Edit button not found (test 13)");
+  }
+  const editBox = editButton.getBoundingClientRect();
+  fire(editButton, "pointerdown", editBox.left + 5, editBox.top + 5, 1);
+  await nextFrame();
+  fire(editButton, "pointerup", editBox.left + 5, editBox.top + 5, 1);
+  await nextFrame();
+  editButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const editFormOpen = selectedCard13.querySelector("textarea") !== null;
+  const stillSelected13 = selectedCard13.style.boxShadow.includes("0px 0px 0px 2px");
+  const panUnchanged = worldLayer().style.transform === panBefore;
+  pass("card button press stays on the card", editFormOpen && stillSelected13 && panUnchanged, `form=${editFormOpen} selected=${stillSelected13} pan=${panUnchanged}`);
+
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");
   document.title = results.every(line => line.startsWith("PASS")) ? "ALL PASS" : "FAILURES";

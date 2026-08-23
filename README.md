@@ -22,7 +22,7 @@ npm run typecheck  # tsc --noEmit only
 - **Node graph canvas** — pan, zoom (wheel, toward cursor), grid, minimap
 - **Three node types** — file, folder, concept; double-click to edit name, spec, type, and parent
 - **Hierarchical scene graph** — any node can be a parent (folders are the natural parents); re-parent from the node editor, cycle-safe
-- **Show/hide** — the eye on each card toggles that node's own visibility; hiding a parent does not hide its children
+- **Show/hide** — the eye on each card toggles that node's visibility; hiding a parent hides its whole subtree (each child's own eye flag still applies on top, and re-showing the parent restores the subtree)
 - **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
 - **Hierarchy browser** — a collapsible tree panel on the right (above the minimap) lists the whole scene graph; click a row to select and center the node, fold/unfold branches, or toggle a node's visibility; hidden nodes are dimmed; the “☰ Hierarchy” toolbar button shows/hides the panel
 - **Dependency edges** — drag from a node's right port to another node; click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too
@@ -30,7 +30,7 @@ npm run typecheck  # tsc --noEmit only
 - **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, parents each file under an auto-created (collapsed) folder node, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
-- **Export Prompt** — serialize the graph to markdown (including the structure tree) and copy it to the clipboard
+- **Export Prompt** — serialize the graph to markdown (structure tree, file layout, modules, dependencies) and copy it to the clipboard; the prompt tells the agent exactly where each file goes and to create any folders or files that don't exist yet (edges into folders are treated as grouping, not dependencies)
 - **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-connect edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
 
 ## Project structure

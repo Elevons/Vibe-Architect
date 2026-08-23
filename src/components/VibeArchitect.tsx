@@ -49,6 +49,31 @@ export function VibeArchitect() {
 
   const addEdge = (from: string, to: string): void => {
     setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
+
+    // Folders act as groups: an edge touching a folder pulls the other
+    // endpoint in as its child in the hierarchy (cycle-safe). File-to-file
+    // edges are plain dependencies and leave the hierarchy untouched.
+    const fromNode = nodes.find(node => node.id === from);
+    const toNode = nodes.find(node => node.id === to);
+    if (fromNode === undefined || toNode === undefined) {
+      return;
+    }
+    let childId: string | null = null;
+    let folderId: string | null = null;
+    if (fromNode.type === "folder" && toNode.type !== "folder") {
+      folderId = fromNode.id;
+      childId = toNode.id;
+    } else if (toNode.type === "folder" && fromNode.type !== "folder") {
+      folderId = toNode.id;
+      childId = fromNode.id;
+    } else if (fromNode.type === "folder" && toNode.type === "folder") {
+      // Folder-to-folder: the target folder nests inside the source folder.
+      folderId = fromNode.id;
+      childId = toNode.id;
+    }
+    if (childId !== null && folderId !== null) {
+      setNodes(prev => SetParent(prev, childId, folderId));
+    }
   };
 
   const { panning, pointerPos, edgeDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge } =
