@@ -1,8 +1,9 @@
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
-import { FONT, GROUP_COLORS, MINIMAP_H, MINIMAP_W, NODE_H, NODE_W, TYPE_COLORS } from "../lib/constants";
+import { FONT, GROUP_COLORS, MINIMAP_H, MINIMAP_W, NODE_H, NODE_W } from "../lib/constants";
 import { DescendantBounds, PortIn, PortOut, WorldBounds } from "../lib/geometry";
+import { ColorsForType } from "../lib/plugins";
 import { BuildChildrenMap } from "../lib/sceneGraph";
-import type { GraphEdge, GraphNode, NodeSize, Point } from "../lib/types";
+import type { GraphEdge, GraphNode, NodeSize, Point, Plugin } from "../lib/types";
 
 /**
  * Bottom-right overview map: parent fills, edge lines, node rectangles, and
@@ -15,6 +16,7 @@ interface MinimapProps {
   nodeMap: Map<string, GraphNode>;
   nodeSizes: Record<string, NodeSize>;
   rendered: Set<string>;
+  plugins: Plugin[];
   pan: Point;
   zoom: number;
   canvasW: number;
@@ -26,7 +28,7 @@ const MINIMAP_PAD = 40;
 const DEFAULT_CANVAS_W = 800;
 const DEFAULT_CANVAS_H = 600;
 
-export function Minimap({ nodes, edges, nodeMap, nodeSizes, rendered, pan, zoom, canvasW, canvasH, onPanTo }: MinimapProps) {
+export function Minimap({ nodes, edges, nodeMap, nodeSizes, rendered, plugins, pan, zoom, canvasW, canvasH, onPanTo }: MinimapProps) {
   const world = WorldBounds(nodes, nodeSizes);
   const width = Math.max(world.w, (canvasW || DEFAULT_CANVAS_W) / zoom) + MINIMAP_PAD * 2;
   const height = Math.max(world.h, (canvasH || DEFAULT_CANVAS_H) / zoom) + MINIMAP_PAD * 2;
@@ -70,7 +72,7 @@ export function Minimap({ nodes, edges, nodeMap, nodeSizes, rendered, pan, zoom,
       <svg width={MINIMAP_W} height={MINIMAP_H}>
         {renderParentRects(nodes, rendered, nodeSizes, toMini, scale)}
         {renderEdgeLines(edges, nodeMap, nodeSizes, toMini)}
-        {renderNodeRects(nodes, rendered, nodeSizes, toMini, scale)}
+        {renderNodeRects(nodes, rendered, nodeSizes, plugins, toMini, scale)}
         <rect
           x={viewportMini.x}
           y={viewportMini.y}
@@ -176,12 +178,13 @@ function renderNodeRects(
   nodes: GraphNode[],
   rendered: Set<string>,
   nodeSizes: Record<string, NodeSize>,
+  plugins: Plugin[],
   toMini: (x: number, y: number) => Point,
   scale: number,
 ) {
   return nodes.filter(node => rendered.has(node.id)).map(node => {
     const origin = toMini(node.x, node.y);
-    const colors = TYPE_COLORS[node.type];
+    const colors = ColorsForType(node.type, plugins);
     const size = nodeSizes[node.id];
     return (
       <rect

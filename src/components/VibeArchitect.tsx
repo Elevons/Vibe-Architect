@@ -9,13 +9,15 @@ import { DescendantBounds, EdgePathFromPoints, PortIn, PortOut, VisibleBounds } 
 import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
 import { DagLayout } from "../lib/layout";
+import { NodeDefaultsFor } from "../lib/plugins";
 import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
-import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, RunMode } from "../lib/types";
+import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, Plugin, RunMode } from "../lib/types";
 import { EdgeLabel } from "./EdgeLabel";
 import { HierarchyPanel } from "./HierarchyPanel";
 import { Minimap } from "./Minimap";
 import { NodeCard } from "./NodeCard";
 import { IngestModal } from "./modals/IngestModal";
+import { PluginModal } from "./modals/PluginModal";
 import { PromptModal } from "./modals/PromptModal";
 import { SaveLoadModal } from "./modals/SaveLoadModal";
 import { StatusBar } from "./StatusBar";
@@ -37,7 +39,11 @@ export function VibeArchitect() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
   const [showIngest, setShowIngest] = useState(false);
+  const [showPlugins, setShowPlugins] = useState(false);
   const [showHierarchy, setShowHierarchy] = useState(true);
+  // Imported node packages. Custom node types resolve their colors and
+  // default names from these definitions.
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
   // Measured card sizes, keyed by node id. Edges anchor to the real port
   // position, so noodles follow their ports when a card grows or shrinks.
   const [nodeSizes, setNodeSizes] = useState<Record<string, NodeSize>>({});
@@ -102,13 +108,29 @@ export function VibeArchitect() {
     const jitterY = Math.random() * 60 - 30;
     const worldX = (canvasSize.width / 2 - pan.x) / zoom - NODE_W / 2 + jitterX;
     const worldY = (canvasSize.height / 2 - pan.y) / zoom - NODE_H / 2 + jitterY;
-    const defaults = NodeDefaults(type);
+    const defaults = NodeDefaultsFor(type, plugins);
     setNodes(prev => [...prev, {
       id, x: worldX, y: worldY, name: defaults.name, desc: defaults.desc,
       path: "", type, parentId: null, visible: true, collapsed: false,
       agentOutput: null, agentStatus: "idle",
     }]);
     setSelected(id);
+  };
+
+  /** Add a node of a plugin-defined type (Add ▾ → Custom nodes). */
+  const addPluginNode = (pluginName: string, type: string): void => {
+    const plugin = plugins.find(entry => entry.name === pluginName);
+    if (plugin === undefined) {
+      return;
+    }
+    if (plugin.nodes.some(node => node.type === type)) {
+      addNode(type);
+    }
+  };
+
+  /** Import a plugin; re-importing the same package name replaces it. */
+  const handleImportPlugin = (plugin: Plugin): void => {
+    setPlugins(prev => [...prev.filter(entry => entry.name !== plugin.name), plugin]);
   };
 
   /** Delete a node, its whole subtree, and every edge touching them. */
@@ -243,6 +265,7 @@ export function VibeArchitect() {
   const getCurrentState = (): GraphSnapshot => ({
     nodes: nodes.map(({ agentOutput, agentStatus, ...rest }) => ({ ...rest, agentOutput, agentStatus: "idle" as const })),
     edges, mode,
+    ...(plugins.length > 0 ? { plugins } : {}),
   });
 
   const handleLoad = (data: GraphSnapshot): void => {
@@ -254,6 +277,10 @@ export function VibeArchitect() {
     }
     if (data.mode !== undefined) {
       setMode(data.mode);
+    }
+    // A saved graph carries the plugins its custom nodes need.
+    if (data.plugins !== undefined) {
+      setPlugins(data.plugins);
     }
     setPan({ x: 0, y: 0 });
     setZoom(1);
@@ -283,7 +310,9 @@ export function VibeArchitect() {
         zoom={zoom}
         nodeCount={nodes.length}
         edgeCount={edges.length}
+        plugins={plugins}
         onAddNode={addNode}
+        onAddPluginNode={addPluginNode}
         onSetMode={setMode}
         onZoomIn={() => zoomAboutCenter(1.25)}
         onZoomOut={() => zoomAboutCenter(1 / 1.25)}
@@ -296,6 +325,7 @@ export function VibeArchitect() {
         onRunAll={() => void handleRunAll()}
         onShowSaveLoad={() => setShowSaveLoad(true)}
         onShowIngest={() => setShowIngest(true)}
+        onShowPlugins={() => setShowPlugins(true)}
         onExportPrompt={() => setShowPrompt(true)}
       />
 
@@ -341,7 +371,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
         }}>
-          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize)}
+          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
         </div>
 
         {nodes.length === 0 && (
@@ -356,6 +386,7 @@ export function VibeArchitect() {
           nodeMap={nodeMap}
           nodeSizes={nodeSizes}
           rendered={rendered}
+          plugins={plugins}
           pan={pan}
           zoom={zoom}
           canvasW={canvasSize.width}
@@ -367,6 +398,7 @@ export function VibeArchitect() {
           <HierarchyPanel
             nodes={nodes}
             selected={selected}
+            plugins={plugins}
             onSelectAndFocus={focusNode}
             onSetVisible={setVisible}
             onClose={() => setShowHierarchy(false)}
@@ -379,6 +411,7 @@ export function VibeArchitect() {
       {showPrompt && <PromptModal nodes={nodes} edges={edges} mode={mode} onClose={() => setShowPrompt(false)} />}
       {showSaveLoad && <SaveLoadModal onClose={() => setShowSaveLoad(false)} onLoad={handleLoad} currentState={getCurrentState()} />}
       {showIngest && <IngestModal onClose={() => setShowIngest(false)} onIngest={handleIngest} />}
+      {showPlugins && <PluginModal onClose={() => setShowPlugins(false)} onImport={handleImportPlugin} loadedPlugins={plugins} />}
     </div>
   );
 }
@@ -426,16 +459,6 @@ svg text { user-select: none; -webkit-user-select: none; }
   .va-status { padding-bottom: calc(4px + env(safe-area-inset-bottom)) !important; }
 }
 `;
-
-/** Default name/desc for a freshly created node. */
-function NodeDefaults(type: NodeType): { name: string; desc: string } {
-  const defaults: Record<NodeType, { name: string; desc: string }> = {
-    file: { name: "new_file.js", desc: "Describe what this file does…" },
-    folder: { name: "new_folder/", desc: "Describe what this folder contains…" },
-    concept: { name: "Untitled concept", desc: "Describe this architectural concept…" },
-  };
-  return defaults[type];
-}
 
 /** Read the latest nodes from state (used between serial agent steps). */
 function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promise<GraphNode[]> {
@@ -579,6 +602,7 @@ function renderNodes(
   setVisible: (id: string, visible: boolean) => void,
   setParent: (id: string, parentId: string | null) => void,
   reportNodeSize: (id: string, width: number, height: number) => void,
+  plugins: Plugin[],
 ) {
   return nodes.filter(node => rendered.has(node.id)).map(node => (
     <NodeCard
@@ -586,6 +610,7 @@ function renderNodes(
       node={node}
       selected={selected === node.id}
       nodes={nodes}
+      plugins={plugins}
       zoom={zoom}
       onSelect={handleSelect}
       onDragStart={handleDragStart}

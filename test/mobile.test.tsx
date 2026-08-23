@@ -57,6 +57,29 @@ function parseTransform(): { x: number; y: number; zoom: number } {
 
 const nextFrame = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60));
 
+/** Add a node through the Add ▾ toolbar dropdown (built-in row). */
+async function addViaMenu(label: string): Promise<void> {
+  const addButton = Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Add ▾");
+  if (addButton === undefined) {
+    throw new Error("Add ▾ button not found");
+  }
+  addButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const menu = Array.from(document.querySelectorAll("div")).find(div => {
+    const style = div.getAttribute("style") ?? "";
+    return style.includes("position: fixed") && style.includes("z-index: 1100");
+  });
+  if (menu === undefined) {
+    throw new Error("Add menu did not open");
+  }
+  const item = Array.from(menu.querySelectorAll("button")).find(button => (button.textContent ?? "").trim() === label);
+  if (item === undefined) {
+    throw new Error(`menu item "${label}" not found`);
+  }
+  item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+}
+
 async function run(): Promise<void> {
   const root = createRoot(document.getElementById("root") as HTMLElement);
   root.render(<VibeArchitect />);
@@ -95,13 +118,8 @@ async function run(): Promise<void> {
   const zoomRatio = afterPinch.zoom / beforePinch.zoom;
   pass("pinch zoom", Math.abs(zoomRatio - 2) < 0.05, `zoom ${beforePinch.zoom} → ${afterPinch.zoom}`);
 
-  // ── Test 3: add a node via toolbar, then drag it ──
-  const addButton = Array.from(document.querySelectorAll("button")).find(button => button.textContent === "+ File");
-  if (addButton === undefined) {
-    throw new Error("+ File button not found");
-  }
-  addButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  await nextFrame();
+  // ── Test 3: add a node via the Add ▾ dropdown, then drag it ──
+  await addViaMenu("File");
   const card = document.querySelector("[data-nodecard='true']") as HTMLElement;
   if (card === null) {
     throw new Error("node card not found");
@@ -149,12 +167,7 @@ async function run(): Promise<void> {
   pass("tap deselects", !stillSelected);
 
   // ── Test 6: edge creation by dragging between ports (touch) ──
-  const addFileButton = Array.from(document.querySelectorAll("button")).find(button => button.textContent === "+ File");
-  if (addFileButton === undefined) {
-    throw new Error("+ File button not found (test 6)");
-  }
-  addFileButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  await nextFrame();
+  await addViaMenu("File");
   const nodeCards = (): HTMLElement[] => Array.from(worldLayer().querySelectorAll("[data-nodecard='true']"));
   const [firstCard, secondCard] = [nodeCards()[0], nodeCards()[1]];
   const outPort = firstCard.querySelector("[title='Drag to connect']") as HTMLElement;
@@ -172,12 +185,7 @@ async function run(): Promise<void> {
   pass("edge via port drag", countsText.includes("1e"), countsText);
 
   // ── Test 7: parent a node, then collapse the parent via chevron tap ──
-  const addFolderButton = Array.from(document.querySelectorAll("button")).find(button => button.textContent === "+ Folder");
-  if (addFolderButton === undefined) {
-    throw new Error("+ Folder button not found");
-  }
-  addFolderButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  await nextFrame();
+  await addViaMenu("Folder");
   const folderCard = nodeCards()[nodeCards().length - 1];
   // Double-tap the first card to open its edit form.
   const firstBox = firstCard.getBoundingClientRect();

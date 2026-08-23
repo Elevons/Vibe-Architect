@@ -1,4 +1,7 @@
-import type { NodeType, RunMode, TypeColors } from "./types";
+import type { RunMode, TypeColors } from "./types";
+
+/** The three built-in node types (plugin types are open-ended). */
+export type BuiltInNodeType = "file" | "folder" | "concept";
 
 /** Canvas node dimensions in world units. */
 export const NODE_W = 280;
@@ -11,8 +14,8 @@ export const MIN_ZOOM = 0.15;
 export const MAX_ZOOM = 3;
 export const ZOOM_STEP = 0.08;
 
-/** Colors per node type. */
-export const TYPE_COLORS: Record<NodeType, TypeColors> = {
+/** Colors per built-in node type. Plugin types resolve via ColorsForType. */
+export const TYPE_COLORS: Record<BuiltInNodeType, TypeColors> = {
   file: { bg: "#1a1a2f", border: "#818cf8", dot: "#818cf8" },
   folder: { bg: "#1a2f1a", border: "#4ade80", dot: "#4ade80" },
   concept: { bg: "#2f2a1a", border: "#facc15", dot: "#facc15" },

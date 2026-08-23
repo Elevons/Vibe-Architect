@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { FONT, GROUP_CARD_H, NODE_W, TYPE_COLORS } from "../lib/constants";
+import { FONT, GROUP_CARD_H, NODE_W } from "../lib/constants";
+import { ColorsForType } from "../lib/plugins";
 import { BuildNodeMap, DescendantCount, SubtreeIds } from "../lib/sceneGraph";
 import { useDoubleTap } from "../hooks/useDoubleTap";
 import { Btn } from "./Btn";
-import type { GraphNode, NodeType } from "../lib/types";
+import type { GraphNode, NodeType, Plugin } from "../lib/types";
 
 /**
  * A single box on the canvas. Double-click (or double-tap) enters edit mode
@@ -24,6 +25,7 @@ interface NodeCardProps {
   node: GraphNode;
   selected: boolean;
   nodes: GraphNode[];
+  plugins: Plugin[];
   zoom: number;
   onSelect: (id: string) => void;
   onDragStart: (event: ReactPointerEvent, id: string) => void;
@@ -42,7 +44,7 @@ interface NodeCardProps {
 const NON_DRAG_TAGS = ["TEXTAREA", "INPUT", "SELECT", "BUTTON"];
 
 export function NodeCard(props: NodeCardProps) {
-  const { node, selected, nodes } = props;
+  const { node, selected, nodes, plugins } = props;
   const [editing, setEditing] = useState(false);
   const [localName, setLocalName] = useState(node.name);
   const [localDesc, setLocalDesc] = useState(node.desc);
@@ -87,7 +89,7 @@ export function NodeCard(props: NodeCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id, node.collapsed, props.onSizeChange]);
 
-  const colors = TYPE_COLORS[node.type];
+  const colors = ColorsForType(node.type, plugins);
   const descendantCount = DescendantCount(nodes, node.id);
   const isParent = descendantCount > 0;
 
@@ -118,6 +120,7 @@ export function NodeCard(props: NodeCardProps) {
     return renderCollapsedCard(node, selected, colors, descendantCount, doubleTap.handlePointerDown, doubleTap.handlePointerUp, cardRef, props);
   }
 
+
   return (
     <div
       ref={cardRef}
@@ -136,8 +139,8 @@ export function NodeCard(props: NodeCardProps) {
       {renderPorts(node, colors, props)}
       {renderCornerControls(node, isParent, props)}
       {editing
-        ? renderEditForm(node, nodes, localName, localDesc, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
-        : renderDisplay(node, nodes, beginEdit, isParent)}
+        ? renderEditForm(node, nodes, plugins, localName, localDesc, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
+        : renderDisplay(node, nodes, plugins, beginEdit, isParent)}
       {selected && !editing && renderActionRow(node, showOutput, setEditing, setShowOutput, props)}
       {showOutput && node.agentOutput !== null && (
         <pre style={{
@@ -276,8 +279,8 @@ function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardPr
 }
 
 /** Double-click/double-tap read-only view of the node. */
-function renderDisplay(node: GraphNode, nodes: GraphNode[], beginEdit: () => void, isParent: boolean) {
-  const colors = TYPE_COLORS[node.type];
+function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], beginEdit: () => void, isParent: boolean) {
+  const colors = ColorsForType(node.type, plugins);
   const nodeMap = BuildNodeMap(nodes);
   const parentName = node.parentId !== null ? nodeMap.get(node.parentId)?.name ?? "" : "";
   const statusColor = AgentStatusColor(node.agentStatus);
@@ -316,6 +319,7 @@ function renderDisplay(node: GraphNode, nodes: GraphNode[], beginEdit: () => voi
 function renderEditForm(
   node: GraphNode,
   nodes: GraphNode[],
+  plugins: Plugin[],
   localName: string,
   localDesc: string,
   colors: { border: string },
@@ -345,7 +349,7 @@ function renderEditForm(
       />
       <div style={{ display: "flex", gap: 4 }}>
         <select value={node.type} onChange={event => props.onUpdate(node.id, { type: event.target.value as NodeType })} style={selectStyle}>
-          {(Object.keys(TYPE_COLORS) as NodeType[]).map(type => (
+          {TypeOptions(node, plugins).map(type => (
             <option key={type} value={type}>{type}</option>
           ))}
         </select>
@@ -362,6 +366,21 @@ function renderEditForm(
       </div>
     </div>
   );
+}
+
+/**
+ * Node types the edit form offers: the three built-ins plus any plugin
+ * types in use in this graph (including the node's own custom type, so a
+ * plugin node can keep its type after editing).
+ */
+function TypeOptions(node: GraphNode, plugins: Plugin[]): string[] {
+  const options = new Set<string>(["file", "folder", "concept", node.type]);
+  for (const entry of plugins) {
+    for (const def of entry.nodes) {
+      options.add(def.type);
+    }
+  }
+  return [...options];
 }
 
 /**

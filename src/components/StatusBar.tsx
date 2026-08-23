@@ -13,6 +13,7 @@ const HINTS = [
   "Drag ● → ● to connect",
   "Edge into a folder groups the node under it",
   "Double-tap edge label to rename",
+  "🧩 Plugins imports custom node types from JSON",
 ];
 
 export function StatusBar() {

@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { FONT, TYPE_COLORS } from "../lib/constants";
+import { FONT } from "../lib/constants";
+import { ColorsForType } from "../lib/plugins";
 import { BuildChildrenMap, ComputeRenderedSet } from "../lib/sceneGraph";
-import type { GraphNode } from "../lib/types";
+import type { GraphNode, Plugin } from "../lib/types";
 
 /**
  * Scene hierarchy browser: a collapsible tree of the whole graph, floating
@@ -15,12 +16,13 @@ import type { GraphNode } from "../lib/types";
 interface HierarchyPanelProps {
   nodes: GraphNode[];
   selected: string | null;
+  plugins: Plugin[];
   onSelectAndFocus: (id: string) => void;
   onSetVisible: (id: string, visible: boolean) => void;
   onClose: () => void;
 }
 
-export function HierarchyPanel({ nodes, selected, onSelectAndFocus, onSetVisible, onClose }: HierarchyPanelProps) {
+export function HierarchyPanel({ nodes, selected, plugins, onSelectAndFocus, onSetVisible, onClose }: HierarchyPanelProps) {
   // Tree branches the user has folded away; everything else is expanded.
   const [folded, setFolded] = useState<Set<string>>(new Set());
 
@@ -83,6 +85,7 @@ export function HierarchyPanel({ nodes, selected, onSelectAndFocus, onSetVisible
             node={node}
             depth={0}
             nodes={nodes}
+            plugins={plugins}
             childrenMap={childrenMap}
             rendered={rendered}
             folded={folded}
@@ -106,6 +109,7 @@ interface TreeRowProps {
   node: GraphNode;
   depth: number;
   nodes: GraphNode[];
+  plugins: Plugin[];
   childrenMap: Map<string, string[]>;
   rendered: Set<string>;
   folded: Set<string>;
@@ -116,12 +120,12 @@ interface TreeRowProps {
 }
 
 function TreeRow(props: TreeRowProps): ReactElement {
-  const { node, depth, childrenMap, rendered, folded, selected } = props;
+  const { node, depth, childrenMap, rendered, folded, selected, plugins } = props;
   const childIds = childrenMap.get(node.id) ?? [];
   const hasChildren = childIds.length > 0;
   const isFolded = folded.has(node.id);
   const isSelected = selected === node.id;
-  const colors = TYPE_COLORS[node.type];
+  const colors = ColorsForType(node.type, plugins);
 
   return (
     <>

@@ -7,8 +7,35 @@
  * is a group — there is no separate group type.
  */
 
-/** Kinds of boxes that can appear on the canvas. */
-export type NodeType = "file" | "folder" | "concept";
+/**
+ * Kinds of boxes that can appear on the canvas. The `(string & {})` term
+ * admits plugin-defined custom types while keeping autocomplete for the
+ * built-ins.
+ */
+export type NodeType = "file" | "folder" | "concept" | (string & {});
+
+/** One node definition shipped inside a plugin package. */
+export interface PluginNodeDef {
+  /** Custom node type id, unique within the plugin (e.g. "b2b:export"). */
+  type: string;
+  /** Display name in the toolbar dropdown and on the card. */
+  label: string;
+  /** Default description for nodes created from this definition. */
+  desc?: string;
+  /** Optional dropdown section (e.g. "Pipeline", "Components"). */
+  category?: string;
+  /** Optional accent color (hex) for cards and ports. */
+  color?: string;
+}
+
+/** A node package: a named bundle of custom node definitions. */
+export interface Plugin {
+  /** Package name, shown under Custom nodes in the toolbar. */
+  name: string;
+  version?: string;
+  description?: string;
+  nodes: PluginNodeDef[];
+}
 
 /** Lifecycle of the per-node code-generation agent. */
 export type AgentStatus = "idle" | "running" | "done" | "error";
@@ -63,6 +90,8 @@ export interface GraphSnapshot {
   nodes: GraphNode[];
   edges: GraphEdge[];
   mode: RunMode;
+  /** Plugins whose custom node types the graph uses (optional). */
+  plugins?: Plugin[];
 }
 
 /** A code file read from disk during repository ingestion. */

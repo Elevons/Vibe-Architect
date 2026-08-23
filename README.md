@@ -31,6 +31,7 @@ npm run typecheck  # tsc --noEmit only
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
 - **Example graph** — `examples/vibe-architect.json` is a loadable snapshot of this project's own structure (folders, files, and real import edges); open it via Save/Load → load to see the app model itself
+- **Plugins** — import custom node types as JSON packages (🧩 Plugins in the toolbar); they appear under **Add ▾ → Custom nodes → <package>** and can be dropped onto the canvas with the package's own label, description, and accent color. Saved graphs embed their plugins, so a file stays self-contained
 - **Export Prompt** — serialize the graph to markdown (structure tree, file layout, modules, dependencies) and copy it to the clipboard; the prompt tells the agent exactly where each file goes and to create any folders or files that don't exist yet (edges into folders are treated as grouping, not dependencies)
 - **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-connect edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
 
@@ -54,7 +55,8 @@ src/
 │       ├── ModalShell.tsx    Shared modal chrome
 │       ├── PromptModal.tsx   Exported architecture prompt
 │       ├── SaveLoadModal.tsx Save/load graphs as .json files
-│       └── IngestModal.tsx   Repository ingestion
+│       ├── IngestModal.tsx   Repository ingestion
+│       └── PluginModal.tsx   Import custom node packages (JSON)
 ├── hooks/
 │   ├── useCanvasSize.ts      ResizeObserver-based size tracking
 │   ├── useWheelZoom.ts       Non-passive wheel zoom toward cursor
@@ -68,6 +70,7 @@ src/
     ├── layout.ts             DAG layout, grid fallback
     ├── sceneGraph.ts         Tree ops: rendered set, subtree ids, cycle-safe re-parent
     ├── fileStorage.ts        JSON file save/load (download + file picker) + legacy migration
+    ├── plugins.ts            Plugin package parse/validate, color + name resolution
     ├── anthropic.ts          Minimal Anthropic Messages API client
     ├── agent.ts              Per-node code generation + file description
     ├── ingest.ts             Import parsing, import resolution, folder parenting, graph build
@@ -79,10 +82,13 @@ test/
 ├── layout.test.html          Layout metrics probe (mobile + desktop)
 ├── layout.test.tsx           Reports toolbar/targets/minimap/root metrics
 ├── example.test.html         Example-graph load harness
-└── example.test.tsx          Loads examples/vibe-architect.json through the app pipeline
+├── example.test.tsx          Loads examples/vibe-architect.json through the app pipeline
+├── plugins.test.html         Plugin system test harness
+└── plugins.test.tsx          Plugin parse/validation + import/Add-menu UI checks
 
 examples/
-└── vibe-architect.json       Loadable snapshot of this project's own structure
+├── vibe-architect.json       Loadable snapshot of this project's own structure
+└── blender2babylon-kit.json  Sample plugin: b2bkit pipeline/component/runtime nodes
 
 scripts/
 └── make-example.mjs          Regenerates examples/vibe-architect.json
@@ -121,6 +127,47 @@ render) is checked by the example test:
 google-chrome --headless --disable-gpu --window-size=1200,800 \
   --virtual-time-budget=15000 --dump-dom \
   http://localhost:5173/test/example.test.html | grep -E "PASS|FAIL"
+```
+
+## Plugins
+
+A plugin is a JSON package that declares custom node types. Import one via
+**🧩 Plugins → Import plugin file…**; the package then shows up in the
+**Add ▾** dropdown under **Custom nodes**, grouped by package name, and each
+declaration becomes a one-tap card (name and description pre-filled, card and
+minimap dot colored with the package's accent). Saved graphs embed the plugins
+their nodes use, so a graph file stays self-contained when moved between
+machines. If a graph references a type whose plugin is missing, the node falls
+back to the built-in concept style.
+
+```json
+{
+  "name": "my-package",
+  "version": "1.0.0",
+  "description": "Optional package description",
+  "nodes": [
+    { "type": "my:widget", "label": "Widget", "desc": "What it is",
+      "category": "Optional grouping", "color": "#22d3ee" }
+  ]
+}
+```
+
+- `name` (required) — package name; re-importing the same name replaces it.
+- `nodes` (required, non-empty) — each needs a `type` (unique, `[A-Za-z0-9._:-]`) and a `label`.
+- `desc`, `category`, `color` are optional; `color` is normalized to `#rrggbb`.
+
+`examples/blender2babylon-kit.json` is a ready-made plugin for the
+Blender2BabylonKit (b2bkit) level pipeline: 44 nodes
+covering the export pipeline, ECS components, runtime core, and scene /
+rendering subsystems, so you can drop the kit's concepts into a graph instead
+of describing them in node text. Load it via **🧩 Plugins**.
+
+The plugin system is covered by the plugins test:
+
+```bash
+google-chrome --headless --disable-gpu --window-size=1200,800 \
+  --virtual-time-budget=20000 --dump-dom \
+  http://localhost:5173/test/plugins.test.html | grep -E "PASS|FAIL"
 ```
 
 ## Notes
