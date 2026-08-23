@@ -66,33 +66,17 @@ export function VibeArchitect() {
     setNodes(prev => prev.map(node => (node.id === id ? { ...node, ...patch } : node)));
   };
 
+  // Edges are grouping: the source is always a folder (the only node type
+  // with an output port), and the noodle pulls the target in as a child in
+  // the hierarchy (cycle-safe). File-to-file noodles don't exist in this
+  // model — the graph is an architecture doc, not an import map.
   const addEdge = (from: string, to: string): void => {
-    setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
-
-    // Folders act as groups: an edge touching a folder pulls the other
-    // endpoint in as its child in the hierarchy (cycle-safe). File-to-file
-    // edges are plain dependencies and leave the hierarchy untouched.
     const fromNode = nodes.find(node => node.id === from);
-    const toNode = nodes.find(node => node.id === to);
-    if (fromNode === undefined || toNode === undefined) {
+    if (fromNode === undefined || fromNode.type !== "folder") {
       return;
     }
-    let childId: string | null = null;
-    let folderId: string | null = null;
-    if (fromNode.type === "folder" && toNode.type !== "folder") {
-      folderId = fromNode.id;
-      childId = toNode.id;
-    } else if (toNode.type === "folder" && fromNode.type !== "folder") {
-      folderId = toNode.id;
-      childId = fromNode.id;
-    } else if (fromNode.type === "folder" && toNode.type === "folder") {
-      // Folder-to-folder: the target folder nests inside the source folder.
-      folderId = fromNode.id;
-      childId = toNode.id;
-    }
-    if (childId !== null && folderId !== null) {
-      setNodes(prev => SetParent(prev, childId, folderId));
-    }
+    setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
+    setNodes(prev => SetParent(prev, to, from));
   };
 
   const { panning, pointerPos, edgeDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge } =

@@ -63,7 +63,7 @@ export interface GraphNode {
   agentStatus: AgentStatus;
 }
 
-/** A dependency arrow from one node to another. */
+/** A grouping arrow from a folder down to one of its children. */
 export interface GraphEdge {
   id: string;
   from: string;

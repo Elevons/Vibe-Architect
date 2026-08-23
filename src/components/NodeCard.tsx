@@ -256,24 +256,35 @@ function AgentStatusColor(status: GraphNode["agentStatus"]): string {
   return "transparent";
 }
 
-/** Output port (bottom) starts an edge; input port (top) ends one. */
+/**
+ * Ports. Folders emit grouping noodles (output port on the bottom edge) and
+ * can nest inside other folders (input port on the top edge). Files and
+ * concepts only receive grouping noodles — they have no output port, so
+ * file-to-file noodles are impossible by construction.
+ */
 function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardProps) {
   const base: CSSProperties = {
     position: "absolute", left: "50%", transform: "translateX(-50%)",
     width: 18, height: 18, borderRadius: "50%", background: colors.dot,
     border: "2px solid #111", cursor: "crosshair", zIndex: 20, touchAction: "none",
   };
+  const inputPort = (
+    <div
+      style={{ ...base, top: -9, opacity: 0.5 }}
+      onPointerUp={event => { event.stopPropagation(); props.onEndEdge(node.id); }}
+    />
+  );
+  if (node.type !== "folder") {
+    return inputPort;
+  }
   return (
     <>
       <div
         style={{ ...base, bottom: -9 }}
         onPointerDown={event => { event.stopPropagation(); props.onStartEdge(node.id, event); }}
-        title="Drag to connect"
+        title="Drag to group"
       />
-      <div
-        style={{ ...base, top: -9, opacity: 0.5 }}
-        onPointerUp={event => { event.stopPropagation(); props.onEndEdge(node.id); }}
-      />
+      {inputPort}
     </>
   );
 }

@@ -63,12 +63,12 @@ addNode("pluginstest", "plugins.test.tsx", "test/plugins.test.tsx", "Plugin suit
 // ── Row 2: app shell ───────────────────────────────────────────────────
 addNode("app", "App.tsx", "src/App.tsx", "Top-level shell that renders the VibeArchitect canvas.", "file", "src", col(0), row(2));
 
-// ── Row 3: the canvas hub ──────────────────────────────────────────────
-addNode("vibe", "VibeArchitect.tsx", "src/components/VibeArchitect.tsx", "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.", "file", "components", col(0), row(3));
+// ── Row 3: the two big cluster folders ─────────────────────────────────
+addNode("components", "components/", "src/components", "Presentational React components for the canvas, cards, panels, and modals.", "folder", "src", col(0), row(3));
+addNode("hooks", "hooks/", "src/hooks", "React hooks that wrap canvas interaction, sizing, zoom, and double-tap.", "folder", "src", col(2), row(3));
 
-// ── Row 4: the two big clusters ────────────────────────────────────────
-addNode("components", "components/", "src/components", "Presentational React components for the canvas, cards, panels, and modals.", "folder", "src", col(0), row(4));
-addNode("hooks", "hooks/", "src/hooks", "React hooks that wrap canvas interaction, sizing, zoom, and double-tap.", "folder", "src", col(2), row(4));
+// ── Row 4: the canvas hub (child of components/) ───────────────────────
+addNode("vibe", "VibeArchitect.tsx", "src/components/VibeArchitect.tsx", "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.", "file", "components", col(0), row(4));
 
 // ── Row 5: component cards + hooks (all import only from below) ────────
 addNode("nodecard", "NodeCard.tsx", "src/components/NodeCard.tsx", "A single node card: display, edit form, eye/chevron, ports, size measurement.", "file", "components", col(0), row(5));
@@ -124,87 +124,14 @@ addNode("examplejson", "vibe-architect.json", "examples/vibe-architect.json", "T
 addNode("b2bkit", "blender2babylon-kit.json", "examples/blender2babylon-kit.json", "Sample plugin: 44 b2bkit node types (pipeline, components, runtime, rendering).", "file", "examples", col(7), row(14));
 addNode("makeexample", "make-example.mjs", "scripts/make-example.mjs", "This script: regenerates examples/vibe-architect.json from the layout above.", "file", "scripts", col(8), row(14));
 
-// ── Import edges (from the real source) ────────────────────────────────
-// Entry chain
-addEdge("main", "app", "mounts");
-addEdge("app", "vibe", "renders");
-// VibeArchitect is the hub
-addEdge("vibe", "nodecard", "renders");
-addEdge("vibe", "minimap", "renders");
-addEdge("vibe", "hierarchyp", "renders");
-addEdge("vibe", "edgelabel", "renders");
-addEdge("vibe", "toolbar", "renders");
-addEdge("vibe", "statusbar", "renders");
-addEdge("vibe", "promptmodal", "opens");
-addEdge("vibe", "saveloadmodal", "opens");
-addEdge("vibe", "ingestmodal", "opens");
-addEdge("vibe", "pluginmodal", "opens");
-addEdge("vibe", "useinteraction", "uses");
-addEdge("vibe", "usecanvassize", "uses");
-addEdge("vibe", "usewheelzoom", "uses");
-addEdge("vibe", "agent", "runs");
-addEdge("vibe", "geometry", "layout");
-addEdge("vibe", "graph", "toposort");
-addEdge("vibe", "ids", "ids");
-addEdge("vibe", "layout", "tidy");
-addEdge("vibe", "scenegraph", "ops");
-addEdge("vibe", "plugins", "defaults");
-// Cards / panels
-addEdge("nodecard", "btn", "uses");
-addEdge("nodecard", "usedoubletap", "uses");
-addEdge("nodecard", "scenegraph", "ops");
-addEdge("nodecard", "plugins", "colors");
-addEdge("minimap", "geometry", "bounds");
-addEdge("minimap", "scenegraph", "children");
-addEdge("minimap", "plugins", "colors");
-addEdge("hierarchyp", "scenegraph", "tree");
-addEdge("hierarchyp", "plugins", "colors");
-addEdge("edgelabel", "usedoubletap", "uses");
-addEdge("toolbar", "btn", "uses");
-addEdge("statusbar", "constants", "hints");
-// Hooks
-addEdge("useinteraction", "constants", "sizes");
-addEdge("usewheelzoom", "constants", "zoom");
-// lib internal
-addEdge("constants", "types", "typed");
-addEdge("geometry", "constants", "sizes");
-addEdge("geometry", "types", "typed");
-addEdge("graph", "types", "typed");
-addEdge("scenegraph", "types", "typed");
-addEdge("layout", "constants", "sizes");
-addEdge("layout", "types", "typed");
-addEdge("agent", "anthropic", "calls");
-addEdge("agent", "types", "typed");
-addEdge("ingest", "agent", "describes");
-addEdge("ingest", "ids", "ids");
-addEdge("ingest", "layout", "lays out");
-addEdge("ingest", "types", "typed");
-addEdge("prompt", "graph", "toposort");
-addEdge("prompt", "scenegraph", "tree");
-addEdge("prompt", "types", "typed");
-addEdge("filestorage", "types", "typed");
-addEdge("filestorage", "plugins", "embeds");
-addEdge("plugins", "constants", "palette");
-// Modals
-addEdge("promptmodal", "modalshell", "wraps");
-addEdge("promptmodal", "prompt", "builds");
-addEdge("saveloadmodal", "modalshell", "wraps");
-addEdge("saveloadmodal", "filestorage", "io");
-addEdge("ingestmodal", "modalshell", "wraps");
-addEdge("ingestmodal", "ingest", "runs");
-addEdge("pluginmodal", "modalshell", "wraps");
-addEdge("pluginmodal", "plugins", "imports");
-// Tests drive the app
-addEdge("mobiletest", "vibe", "drives");
-addEdge("layouttest", "vibe", "probes");
-addEdge("examplestest", "filestorage", "loads");
-addEdge("examplestest", "scenegraph", "renders");
-addEdge("examplestest", "examplejson", "checks");
-addEdge("pluginstest", "vibe", "drives");
-addEdge("pluginstest", "filestorage", "round-trips");
-addEdge("pluginstest", "plugins", "checks");
-// The example is self-referential
-addEdge("makeexample", "examplejson", "writes");
+// ── Grouping edges: each folder draws a noodle to its children ─────────
+// The graph is an architecture doc, not an import map: structure is the
+// only kind of edge, and it flows from a folder down to each child.
+for (const node of nodes) {
+  if (node.parentId !== null) {
+    addEdge(node.parentId, node.id);
+  }
+}
 
 const snapshot = { nodes, edges, mode: "parallel" };
 const outFile = join(outDir, "vibe-architect.json");

@@ -1,7 +1,7 @@
 # Vibe Architect — Agent Handoff Summary
 
 ## What it is
-A node-graph canvas app for designing software architecture: files/folders/concepts are draggable cards, dependencies are bezier "noodle" edges, and an AI agent (Anthropic Messages API) can generate code per node from upstream context. Persistence is plain JSON files (portable between machines). Fully touch/mobile compatible.
+A node-graph canvas app for designing software architecture: files/folders/concepts are draggable cards, grouping is bezier "noodle" edges drawn from folders down to their children (the graph is an architecture doc, not an import map), and an AI agent (Anthropic Messages API) can generate code per node from upstream context. Persistence is plain JSON files (portable between machines). Fully touch/mobile compatible.
 
 **Terminology note:** the *original* app was a single-file upload (`vibe-architect(1).jsx`, ~1190 lines). The current project is a **structured multi-file TypeScript codebase** — but it is still a *single-page web app* in the routing sense: one `index.html`, no router, one full-screen canvas. "Single page" refers to the web app structure, not the file count.
 
@@ -32,7 +32,7 @@ examples/     vibe-architect.json (graph), blender2babylon-kit.json (plugin)
 - `NodeType` = `"file" | "folder" | "concept" | (string & {})` — the `(string & {})` term admits plugin-defined custom types while keeping autocomplete for the built-ins
 - `GraphEdge`: `id, from, to, label` · `GraphSnapshot`: `{ nodes, edges, mode, plugins? }`
 - Scene graph: `parentId` (no children arrays); `SetParent` is cycle-safe; `ComputeRenderedSet` — a node renders only if visible AND no strict ancestor is hidden/collapsed (**hiding a parent hides its subtree**; collapsing tucks children away)
-- **Folders act as groups**: an edge touching a folder's port reparents the other node under it (folder→folder: `from` becomes child of `to`)
+- **Folders act as groups**: only folders emit noodles — `addEdge` rejects non-folder sources; dragging from a folder's output port onto a node adds the edge and reparents the node under the folder. Files/concepts have an input port only. `FilterGroupingEdges` drops file-to-file edges from older saves on load
 
 ## Plugin system (`src/lib/plugins.ts`)
 - A **plugin** is a JSON file: `{ name, version?, description?, nodes: [{ type, label, desc?, category?, color? }] }`
@@ -45,11 +45,11 @@ examples/     vibe-architect.json (graph), blender2babylon-kit.json (plugin)
 
 ## AI agent (still active)
 - `src/lib/anthropic.ts` — minimal client for `https://api.anthropic.com/v1/messages` (`RequestAnthropicText(prompt, maxTokens)`)
-- `src/lib/agent.ts` — `RunAgent` (per-node code generation, fed upstream context via incoming edges) and `DescribeFile` (used by Ingest to auto-describe imported files)
+- `src/lib/agent.ts` — `RunAgent` (per-node code generation, fed upstream context via incoming edges — now the parent folder's description) and `DescribeFile` (used by Ingest to auto-describe ingested files)
 - Wired into the UI: `VibeArchitect.tsx` runs the agent per node / for all nodes; `NodeCard.tsx` shows a status dot and the generated output. Requires an API key at runtime (browser-side call).
 
 ## Key implementation facts (the gotchas)
-- **Ports are top/bottom**: input port top-center, output port bottom-center; edges flow top→bottom. Bezier control distance = `max(50, min(|dy|·0.5, 200))`
+- **Ports are top/bottom**: input port top-center (every node), output port bottom-center (folders only — files/concepts cannot emit noodles); edges flow top→bottom. Bezier control distance = `max(50, min(|dy|·0.5, 200))`
 - **Edges anchor to measured card sizes**: `NodeCard` reports `offsetWidth/Height` via `onSizeChange` in `useLayoutEffect` (primary, synchronous) + `ResizeObserver` (backstop — non-deterministic under headless Chrome virtual time). `VibeArchitect` owns `nodeSizes`; geometry helpers take optional sizes. Initial-load fit uses defaults
 - **Pinch/pan use live refs**: `useCanvasInteraction` mirrors `pan`/`zoom` into refs, updated synchronously in `commitPan/commitZoom` — a second finger landing in the same frame as a pan must not read a stale render closure (regression: 0.00px vs 14.5px jump). 6px `PAN_DEADZONE` so fast pinches don't nudge the view first
 - **Pointer Events only** (mouse+touch unified); `touch-action: none` on canvas/cards/ports; viewport `user-scalable=no`; `100dvh`; black background everywhere (incl. `index.html` body/theme-color)

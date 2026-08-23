@@ -3,10 +3,10 @@
 A node-graph canvas for designing software architecture. The graph is a
 *hierarchical scene graph*: every node is an object in a tree (via `parentId`)
 that can be shown/hidden and, when it has children, collapsed into a compact
-card. Model files, folders, and concepts as nodes; draw dependency edges
-between them; let an LLM generate code per node (with upstream context);
-ingest a real repository to build the graph automatically; and export the
-whole design as a prompt for another agent.
+card. Model files, folders, and concepts as nodes; draw grouping noodles
+from folders down to their children; let an LLM generate code per node (with
+upstream context); ingest a real repository to build the graph automatically;
+and export the whole design as a prompt for another agent.
 
 ## Getting started
 
@@ -25,15 +25,15 @@ npm run typecheck  # tsc --noEmit only
 - **Show/hide** — the eye on each card toggles that node's visibility; hiding a parent hides its whole subtree (each child's own eye flag still applies on top, and re-showing the parent restores the subtree)
 - **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
 - **Hierarchy browser** — a collapsible tree panel on the right (above the minimap) lists the whole scene graph; click a row to select and center the node, fold/unfold branches, or toggle a node's visibility; hidden nodes are dimmed; the “☰ Hierarchy” toolbar button shows/hides the panel
-- **Dependency edges** — drag from a node's bottom port to another node's top port (edges flow top to bottom); click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too. Edge endpoints track each card's *measured* size, so noodles stay anchored to their ports when a card grows (edit form, description, agent output)
+- **Grouping edges** — the graph is an architecture doc, not an import map: only folders emit noodles (drag from a folder's bottom port onto any node's top port to group it under the folder; edges flow top to bottom). Click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too. Edge endpoints track each card's *measured* size, so noodles stay anchored to their ports when a card grows (edit form, description, agent output)
 - **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
-- **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parses imports into edges, parents each file under an auto-created (collapsed) folder node, and lays the graph out
+- **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parents each file under an auto-created (collapsed) folder node with a grouping noodle from each folder to its children, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
-- **Example graph** — `examples/vibe-architect.json` is a loadable snapshot of this project's own structure (folders, files, and real import edges); open it via Save/Load → load to see the app model itself
+- **Example graph** — `examples/vibe-architect.json` is a loadable snapshot of this project's own structure (folders, files, and folder → child grouping edges); open it via Save/Load → load to see the app model itself
 - **Plugins** — import custom node types as JSON packages (🧩 Plugins in the toolbar); they appear under **Add ▾ → Custom nodes → <package>** and can be dropped onto the canvas with the package's own label, description, and accent color. Saved graphs embed their plugins, so a file stays self-contained
-- **Export Prompt** — serialize the graph to markdown (structure tree, file layout, modules, dependencies) and copy it to the clipboard; the prompt tells the agent exactly where each file goes and to create any folders or files that don't exist yet (edges into folders are treated as grouping, not dependencies)
-- **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-connect edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
+- **Export Prompt** — serialize the graph to markdown (structure tree, file layout, modules) and copy it to the clipboard; the prompt tells the agent exactly where each file goes and to create any folders or files that don't exist yet
+- **Mobile** — touch panning, pinch-to-zoom, node dragging, drag-to-group edges, and double-tap to edit; the toolbar, status bar, and modals adapt to small screens (scrollable rows, larger touch targets, safe-area insets, dynamic viewport height)
 
 ## Project structure
 
@@ -113,7 +113,8 @@ when everything works.
 ## Example graph
 
 `examples/vibe-architect.json` models this project itself: 48 nodes (8 folders,
-40 files) and 72 import edges, laid out in clusters under each folder —
+40 files) and 44 grouping edges — one noodle from each folder to each of its
+children, laid out in clusters under each folder —
 including `examples/` and `scripts/`, so the graph contains a card for the
 snapshot file itself and for the script that generates it. Load it via
 **Save/Load → load** to open it on the canvas. Regenerate it with:

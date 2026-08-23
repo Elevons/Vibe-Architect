@@ -1,5 +1,5 @@
 import { ParsePluginArray } from "./plugins";
-import type { GraphNode, GraphSnapshot } from "./types";
+import type { GraphEdge, GraphNode, GraphSnapshot } from "./types";
 
 /**
  * File-based persistence: saving downloads a pretty-printed JSON file,
@@ -61,9 +61,10 @@ export function ParseGraphSnapshot(text: string): GraphSnapshot | null {
       pluginTypes.add(node.type);
     }
   }
+  const nodes = [...candidate.nodes.map(raw => NormalizeNode(raw, pluginTypes)), ...LegacyGroupFolders(candidate.groups)];
   const snapshot: GraphSnapshot = {
-    nodes: [...candidate.nodes.map(raw => NormalizeNode(raw, pluginTypes)), ...LegacyGroupFolders(candidate.groups)],
-    edges: candidate.edges,
+    nodes,
+    edges: FilterGroupingEdges(nodes, candidate.edges),
     mode: candidate.mode === "serial" ? "serial" : "parallel",
   };
   if (plugins.length > 0) {
@@ -93,6 +94,40 @@ function NormalizeNode(raw: unknown, pluginTypes: Set<string>): GraphNode {
     agentOutput: typeof node.agentOutput === "string" ? node.agentOutput : null,
     agentStatus: IsAgentStatus(node.agentStatus) ? node.agentStatus : "idle",
   };
+}
+
+/**
+ * Keep only grouping edges: both endpoints resolve and at least one
+ * endpoint is a folder. File-to-file dependency edges from older files are
+ * documentation, not architecture, and are dropped on load.
+ */
+function FilterGroupingEdges(nodes: GraphNode[], rawEdges: unknown[]): GraphEdge[] {
+  const typeById = new Map(nodes.map(node => [node.id, node.type]));
+  const edges: GraphEdge[] = [];
+  for (const raw of rawEdges) {
+    const edge = raw as Partial<GraphEdge>;
+    if (typeof edge.id !== "string" || edge.id === "") {
+      continue;
+    }
+    if (typeof edge.from !== "string" || typeof edge.to !== "string") {
+      continue;
+    }
+    const fromType = typeById.get(edge.from);
+    const toType = typeById.get(edge.to);
+    if (fromType === undefined || toType === undefined) {
+      continue;
+    }
+    if (fromType !== "folder" && toType !== "folder") {
+      continue;
+    }
+    edges.push({
+      id: edge.id,
+      from: edge.from,
+      to: edge.to,
+      label: typeof edge.label === "string" ? edge.label : "",
+    });
+  }
+  return edges;
 }
 
 /**

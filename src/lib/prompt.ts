@@ -22,14 +22,6 @@ export function BuildArchitecturePrompt(
   const nodeById = new Map(nodes.map(node => [node.id, node]));
   const childrenMap = BuildChildrenMap(nodes);
 
-  // Edges touching a folder are grouping edges (they express the hierarchy),
-  // not dependencies; the structure tree and file layout carry them instead.
-  const dependencyEdges = edges.filter(edge => {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    return from !== undefined && to !== undefined && from.type !== "folder" && to.type !== "folder";
-  });
-
   lines.push("# System Architecture\n");
   lines.push(`Execution mode: ${mode}\n`);
 
@@ -41,40 +33,21 @@ export function BuildArchitecturePrompt(
   lines.push("Create each folder (directory) below if it does not already exist, then create each file at its listed path if it does not already exist.\n");
   RenderFileLayout(nodes, nodeById, lines);
 
+  // Edges are grouping (folder → child); the structure tree above carries
+  // them, so the module list needs no per-edge context lines. Serial mode
+  // still orders modules topologically (folders before their children).
   lines.push("## Modules\n");
-  const ordered = mode === "serial" ? TopoSort(nodes, dependencyEdges) : nodes;
+  const ordered = mode === "serial" ? TopoSort(nodes, edges) : nodes;
   for (let index = 0; index < ordered.length; index += 1) {
     const node = ordered[index];
-    const incoming = EdgeNames(dependencyEdges.filter(edge => edge.to === node.id), nodeById, "from");
-    const outgoing = EdgeNames(dependencyEdges.filter(edge => edge.from === node.id), nodeById, "to");
-
     const step = mode === "serial" ? `Step ${index + 1}: ` : "";
     lines.push(`### ${step}${node.name} [${node.type}]`);
     lines.push(node.desc);
     lines.push(`Path: ${NodePath(node, nodeById)}`);
-    if (incoming.length > 0) {
-      lines.push(`Receives context from: ${incoming.join(", ")}`);
-    }
-    if (outgoing.length > 0) {
-      lines.push(`Passes context to: ${outgoing.join(", ")}`);
-    }
     if (node.agentOutput !== null) {
       lines.push(`Generated code available: yes (${node.agentOutput.split("\n").length} lines)`);
     }
     lines.push("");
-  }
-
-  lines.push("## Dependency Graph\n");
-  if (dependencyEdges.length === 0) {
-    lines.push("(none)");
-  }
-  for (const edge of dependencyEdges) {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    if (from !== undefined && to !== undefined) {
-      const label = edge.label !== "" ? ` [${edge.label}]` : "";
-      lines.push(`${from.name} →${label} ${to.name}`);
-    }
   }
 
   return lines.join("\n");
@@ -170,20 +143,3 @@ function NodePath(
   return parts.join("/");
 }
 
-/** "Name (label)" strings for the other end of each edge. */
-function EdgeNames(
-  edges: GraphEdge[],
-  nodeById: Map<string, GraphNode>,
-  otherEnd: "from" | "to",
-): string[] {
-  const names: string[] = [];
-  for (const edge of edges) {
-    const other = nodeById.get(otherEnd === "from" ? edge.from : edge.to);
-    if (other === undefined) {
-      continue;
-    }
-    const label = edge.label !== "" ? ` (${edge.label})` : "";
-    names.push(`${other.name}${label}`);
-  }
-  return names;
-}

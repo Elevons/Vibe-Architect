@@ -166,12 +166,15 @@ async function run(): Promise<void> {
   const stillSelected = (document.querySelector("[data-nodecard='true']") as HTMLElement).style.boxShadow.includes("0px 0px 0px 2px");
   pass("tap deselects", !stillSelected);
 
-  // ── Test 6: edge creation by dragging between ports (touch) ──
+  // ── Test 6: grouping edge by dragging a folder's port onto a file (touch) ──
+  // Files have no output port; only folders emit noodles.
   await addViaMenu("File");
+  await addViaMenu("Folder");
   const nodeCards = (): HTMLElement[] => Array.from(worldLayer().querySelectorAll("[data-nodecard='true']"));
   const [firstCard, secondCard] = [nodeCards()[0], nodeCards()[1]];
-  const outPort = firstCard.querySelector("[title='Drag to connect']") as HTMLElement;
-  // The input port is the port div positioned on the left (opacity 0.5).
+  const folderCard6 = nodeCards()[nodeCards().length - 1];
+  const outPort = folderCard6.querySelector("[title='Drag to group']") as HTMLElement;
+  // The input port is the port div with opacity 0.5 (top edge, centered).
   const inputPort = Array.from(secondCard.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement;
   const outBox = outPort.getBoundingClientRect();
   const inBox = inputPort.getBoundingClientRect();
@@ -182,7 +185,40 @@ async function run(): Promise<void> {
   fire(inputPort, "pointerup", inBox.left + 5, inBox.top + 5, 1);
   await nextFrame();
   const countsText = document.querySelector(".va-counts")?.textContent ?? "";
-  pass("edge via port drag", countsText.includes("1e"), countsText);
+  pass("folder edge via port drag", countsText.includes("1e"), countsText);
+
+  // Restore the pre-test-6 state (file1 + loose file2, no folders) so the
+  // later tests see the same world: unparent file2, then delete the folder.
+  const secondBox = secondCard.getBoundingClientRect();
+  for (const round of [0, 1]) {
+    fire(secondCard, "pointerdown", secondBox.left + secondBox.width / 2, secondBox.top + 10, 1 + round);
+    await nextFrame();
+    fire(secondCard, "pointerup", secondBox.left + secondBox.width / 2, secondBox.top + 10, 1 + round);
+    await nextFrame();
+  }
+  const unparentSelect = secondCard.querySelectorAll("select")[1] as HTMLSelectElement;
+  unparentSelect.value = "";
+  unparentSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  await nextFrame();
+  const cancelButton = Array.from(secondCard.querySelectorAll("button")).find(button => button.textContent === "Cancel");
+  if (cancelButton === undefined) {
+    throw new Error("Cancel button not found in edit form (test 6)");
+  }
+  cancelButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const folderBox6 = folderCard6.getBoundingClientRect();
+  fire(folderCard6, "pointerdown", folderBox6.left + folderBox6.width / 2, folderBox6.top + folderBox6.height / 2, 1);
+  await nextFrame();
+  fire(folderCard6, "pointerup", folderBox6.left + folderBox6.width / 2, folderBox6.top + folderBox6.height / 2, 1);
+  await nextFrame();
+  const deleteButton = Array.from(folderCard6.querySelectorAll("button")).find(button => button.textContent === "✕");
+  if (deleteButton === undefined) {
+    throw new Error("delete button not found on selected folder (test 6)");
+  }
+  deleteButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await nextFrame();
+  const restoredCounts = document.querySelector(".va-counts")?.textContent ?? "";
+  pass("test 6 cleanup restores state", restoredCounts.includes("2n") && restoredCounts.includes("0e"), restoredCounts);
 
   // ── Test 7: parent a node, then collapse the parent via chevron tap ──
   await addViaMenu("Folder");
@@ -196,7 +232,9 @@ async function run(): Promise<void> {
     await nextFrame();
   }
   const parentSelect = firstCard.querySelectorAll("select")[1] as HTMLSelectElement;
-  const folderOption = Array.from(parentSelect.options).find(option => option.textContent === "new_folder/");
+  // Several folders may share the default name; the one just added is last.
+  const folderOptions = Array.from(parentSelect.options).filter(option => option.textContent === "new_folder/");
+  const folderOption = folderOptions[folderOptions.length - 1];
   if (folderOption === undefined) {
     throw new Error("folder option not found in parent select");
   }
@@ -272,8 +310,12 @@ async function run(): Promise<void> {
   unhideButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   await nextFrame();
 
-  // Expand the collapsed folder card so its ports are back.
-  const collapsedFolderCard = nodeCards().find(card => card.textContent?.includes("new_folder/"));
+  // Expand the collapsed folder card so its ports are back. Identify it by
+  // its Expand button — several cards may contain "new_folder/" (child
+  // cards show it as a parent indicator).
+  const collapsedFolderCard = nodeCards().find(card =>
+    Array.from(card.querySelectorAll("button")).some(button => button.textContent === "Expand ▾"),
+  );
   if (collapsedFolderCard === undefined) {
     throw new Error("collapsed folder card not found (test 11)");
   }
@@ -296,7 +338,7 @@ async function run(): Promise<void> {
   if (folderCardNow === undefined || file2CardNow === undefined) {
     throw new Error("cards not found after expand (test 11)");
   }
-  const folderOutPort = folderCardNow.querySelector("[title='Drag to connect']") as HTMLElement;
+  const folderOutPort = folderCardNow.querySelector("[title='Drag to group']") as HTMLElement;
   const file2InPort = Array.from(file2CardNow.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement;
   if (folderOutPort === null || file2InPort === undefined) {
     throw new Error("ports not found for folder grouping drag (test 11)");
@@ -311,10 +353,10 @@ async function run(): Promise<void> {
   await nextFrame();
 
   // file2 is now a child of the folder: its row moved under the still-folded
-  // folder branch (2 visible rows → 1), and the new edge is counted.
+  // folder branch (2 visible rows → 1), and the grouping edge is counted.
   const countsAfter = document.querySelector(".va-counts")?.textContent ?? "";
   const rowsAfter = rows().length;
-  pass("folder edge groups node", countsAfter.includes("2e") && rowsAfter === 1, `counts=${countsAfter} rows=${rowsAfter} (was 2)`);
+  pass("folder edge groups node", countsAfter.includes("1e") && rowsAfter === 1, `counts=${countsAfter} rows=${rowsAfter} (was 2)`);
 
   // ── Test 12: hiding a parent hides its whole subtree ──
   const cardsBefore = nodeCards().length;
@@ -386,19 +428,21 @@ async function run(): Promise<void> {
   // height bug, which was off by tens of px on expanded cards.
   const TOLERANCE_PX = 5;
   const measureAnchored = (): { anchored: number; total: number } => {
-    const portCenters: { out: { x: number; y: number }; in: { x: number; y: number } }[] = [];
+    // Folders emit (output port, bottom edge); every node receives
+    // (input port, top edge). Collect the two port kinds separately.
+    const outCenters: { x: number; y: number }[] = [];
+    const inCenters: { x: number; y: number }[] = [];
     for (const card of nodeCards()) {
-      const outPort = card.querySelector("[title='Drag to connect']") as HTMLElement | null;
+      const outPort = card.querySelector("[title='Drag to group']") as HTMLElement | null;
       const inPort = Array.from(card.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement | undefined;
-      if (outPort === null || inPort === undefined) {
-        continue;
+      if (outPort !== null) {
+        const outBox = outPort.getBoundingClientRect();
+        outCenters.push(toWorld(outBox.left + outBox.width / 2, outBox.top + outBox.height / 2));
       }
-      const outBox = outPort.getBoundingClientRect();
-      const inBox = inPort.getBoundingClientRect();
-      portCenters.push({
-        out: toWorld(outBox.left + outBox.width / 2, outBox.top + outBox.height / 2),
-        in: toWorld(inBox.left + inBox.width / 2, inBox.top + inBox.height / 2),
-      });
+      if (inPort !== undefined) {
+        const inBox = inPort.getBoundingClientRect();
+        inCenters.push(toWorld(inBox.left + inBox.width / 2, inBox.top + inBox.height / 2));
+      }
     }
     const edgePaths = Array.from(document.querySelectorAll("svg path")).filter(path => path.getAttribute("stroke") === "#333");
     let anchored = 0;
@@ -409,8 +453,8 @@ async function run(): Promise<void> {
       }
       const start = { x: Number(match[1]), y: Number(match[2]) };
       const end = { x: Number(match[3]), y: Number(match[4]) };
-      const startsOnPort = portCenters.some(port => Math.hypot(port.out.x - start.x, port.out.y - start.y) < TOLERANCE_PX);
-      const endsOnPort = portCenters.some(port => Math.hypot(port.in.x - end.x, port.in.y - end.y) < TOLERANCE_PX);
+      const startsOnPort = outCenters.some(port => Math.hypot(port.x - start.x, port.y - start.y) < TOLERANCE_PX);
+      const endsOnPort = inCenters.some(port => Math.hypot(port.x - end.x, port.y - end.y) < TOLERANCE_PX);
       if (startsOnPort && endsOnPort) {
         anchored += 1;
       }
@@ -422,7 +466,7 @@ async function run(): Promise<void> {
     await nextFrame();
     measurement = measureAnchored();
   }
-  pass("edges anchor to measured ports", measurement.total === 2 && measurement.anchored === 2, `anchored ${measurement.anchored}/${measurement.total}`);
+  pass("edges anchor to measured ports", measurement.total === 1 && measurement.anchored === 1, `anchored ${measurement.anchored}/${measurement.total}`);
 
   // ── Test 15: pinch stays anchored when the first finger has already panned ──
   // Regression: a fast pinch used to read a stale pan/zoom closure, so the

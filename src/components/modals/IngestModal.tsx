@@ -7,7 +7,8 @@ import { ModalShell } from "./ModalShell";
 
 /**
  * Repository ingestion: pick a folder, read its code files, then let the
- * tool describe them, parse imports, and lay the resulting graph out.
+ * tool describe them, group them under folder nodes, and lay the resulting
+ * graph out.
  */
 
 type IngestStatus = "idle" | "reading" | "ready" | "analyzing" | "done";
@@ -73,7 +74,8 @@ export function IngestModal({ onClose, onIngest }: IngestModalProps) {
     <ModalShell title="Ingest Repository" maxWidth={520} onClose={onClose}>
       <p style={{ margin: 0, fontSize: 11, color: "#888", fontFamily: FONT, lineHeight: 1.5 }}>
         Select a project folder. The tool reads code files, uses an LLM to describe each one,
-        parses imports to build edges, and lays everything out on the canvas.
+        groups them under folder nodes with a noodle from each folder to its children,
+        and lays everything out on the canvas.
       </p>
 
       <input ref={fileRef} type="file" multiple onChange={event => void handleSelect(event)} style={{ display: "none" }} />

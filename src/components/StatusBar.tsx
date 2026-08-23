@@ -10,8 +10,7 @@ const HINTS = [
   "Double-tap node to edit",
   "👁 eye hides a node and its subtree",
   "▾ chevron collapses a parent",
-  "Drag ● → ● to connect",
-  "Edge into a folder groups the node under it",
+  "Drag from a folder's ● onto a node to group it under the folder",
   "Double-tap edge label to rename",
   "🧩 Plugins imports custom node types from JSON",
 ];

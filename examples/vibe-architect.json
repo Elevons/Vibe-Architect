@@ -155,20 +155,6 @@
       "agentStatus": "idle"
     },
     {
-      "id": "vibe",
-      "name": "VibeArchitect.tsx",
-      "path": "src/components/VibeArchitect.tsx",
-      "desc": "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.",
-      "type": "file",
-      "parentId": "components",
-      "x": 0,
-      "y": 570,
-      "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
-    },
-    {
       "id": "components",
       "name": "components/",
       "path": "src/components",
@@ -176,7 +162,7 @@
       "type": "folder",
       "parentId": "src",
       "x": 0,
-      "y": 760,
+      "y": 570,
       "visible": true,
       "collapsed": false,
       "agentOutput": null,
@@ -190,6 +176,20 @@
       "type": "folder",
       "parentId": "src",
       "x": 740,
+      "y": 570,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "vibe",
+      "name": "VibeArchitect.tsx",
+      "path": "src/components/VibeArchitect.tsx",
+      "desc": "The canvas: owns graph state, renders nodes/edges/minimap/panels, wires interactions.",
+      "type": "file",
+      "parentId": "components",
+      "x": 0,
       "y": 760,
       "visible": true,
       "collapsed": false,
@@ -676,435 +676,267 @@
   "edges": [
     {
       "id": "e1",
-      "from": "main",
-      "to": "app",
-      "label": "mounts"
+      "from": "src",
+      "to": "main",
+      "label": ""
     },
     {
       "id": "e2",
-      "from": "app",
-      "to": "vibe",
-      "label": "renders"
+      "from": "src",
+      "to": "viteenv",
+      "label": ""
     },
     {
       "id": "e3",
-      "from": "vibe",
-      "to": "nodecard",
-      "label": "renders"
+      "from": "test",
+      "to": "mobiletest",
+      "label": ""
     },
     {
       "id": "e4",
-      "from": "vibe",
-      "to": "minimap",
-      "label": "renders"
+      "from": "test",
+      "to": "layouttest",
+      "label": ""
     },
     {
       "id": "e5",
-      "from": "vibe",
-      "to": "hierarchyp",
-      "label": "renders"
+      "from": "test",
+      "to": "examplestest",
+      "label": ""
     },
     {
       "id": "e6",
-      "from": "vibe",
-      "to": "edgelabel",
-      "label": "renders"
+      "from": "test",
+      "to": "pluginstest",
+      "label": ""
     },
     {
       "id": "e7",
-      "from": "vibe",
-      "to": "toolbar",
-      "label": "renders"
+      "from": "src",
+      "to": "app",
+      "label": ""
     },
     {
       "id": "e8",
-      "from": "vibe",
-      "to": "statusbar",
-      "label": "renders"
+      "from": "src",
+      "to": "components",
+      "label": ""
     },
     {
       "id": "e9",
-      "from": "vibe",
-      "to": "promptmodal",
-      "label": "opens"
+      "from": "src",
+      "to": "hooks",
+      "label": ""
     },
     {
       "id": "e10",
-      "from": "vibe",
-      "to": "saveloadmodal",
-      "label": "opens"
+      "from": "components",
+      "to": "vibe",
+      "label": ""
     },
     {
       "id": "e11",
-      "from": "vibe",
-      "to": "ingestmodal",
-      "label": "opens"
+      "from": "components",
+      "to": "nodecard",
+      "label": ""
     },
     {
       "id": "e12",
-      "from": "vibe",
-      "to": "pluginmodal",
-      "label": "opens"
+      "from": "components",
+      "to": "minimap",
+      "label": ""
     },
     {
       "id": "e13",
-      "from": "vibe",
-      "to": "useinteraction",
-      "label": "uses"
+      "from": "components",
+      "to": "hierarchyp",
+      "label": ""
     },
     {
       "id": "e14",
-      "from": "vibe",
-      "to": "usecanvassize",
-      "label": "uses"
+      "from": "components",
+      "to": "edgelabel",
+      "label": ""
     },
     {
       "id": "e15",
-      "from": "vibe",
-      "to": "usewheelzoom",
-      "label": "uses"
+      "from": "hooks",
+      "to": "usecanvassize",
+      "label": ""
     },
     {
       "id": "e16",
-      "from": "vibe",
-      "to": "agent",
-      "label": "runs"
+      "from": "hooks",
+      "to": "usewheelzoom",
+      "label": ""
     },
     {
       "id": "e17",
-      "from": "vibe",
-      "to": "geometry",
-      "label": "layout"
+      "from": "components",
+      "to": "toolbar",
+      "label": ""
     },
     {
       "id": "e18",
-      "from": "vibe",
-      "to": "graph",
-      "label": "toposort"
+      "from": "components",
+      "to": "statusbar",
+      "label": ""
     },
     {
       "id": "e19",
-      "from": "vibe",
-      "to": "ids",
-      "label": "ids"
+      "from": "hooks",
+      "to": "useinteraction",
+      "label": ""
     },
     {
       "id": "e20",
-      "from": "vibe",
-      "to": "layout",
-      "label": "tidy"
+      "from": "components",
+      "to": "btn",
+      "label": ""
     },
     {
       "id": "e21",
-      "from": "vibe",
-      "to": "scenegraph",
-      "label": "ops"
+      "from": "hooks",
+      "to": "usedoubletap",
+      "label": ""
     },
     {
       "id": "e22",
-      "from": "vibe",
-      "to": "plugins",
-      "label": "defaults"
+      "from": "components",
+      "to": "modals",
+      "label": ""
     },
     {
       "id": "e23",
-      "from": "nodecard",
-      "to": "btn",
-      "label": "uses"
+      "from": "src",
+      "to": "lib",
+      "label": ""
     },
     {
       "id": "e24",
-      "from": "nodecard",
-      "to": "usedoubletap",
-      "label": "uses"
+      "from": "modals",
+      "to": "promptmodal",
+      "label": ""
     },
     {
       "id": "e25",
-      "from": "nodecard",
-      "to": "scenegraph",
-      "label": "ops"
+      "from": "modals",
+      "to": "saveloadmodal",
+      "label": ""
     },
     {
       "id": "e26",
-      "from": "nodecard",
-      "to": "plugins",
-      "label": "colors"
+      "from": "modals",
+      "to": "ingestmodal",
+      "label": ""
     },
     {
       "id": "e27",
-      "from": "minimap",
-      "to": "geometry",
-      "label": "bounds"
+      "from": "modals",
+      "to": "pluginmodal",
+      "label": ""
     },
     {
       "id": "e28",
-      "from": "minimap",
-      "to": "scenegraph",
-      "label": "children"
+      "from": "lib",
+      "to": "agent",
+      "label": ""
     },
     {
       "id": "e29",
-      "from": "minimap",
-      "to": "plugins",
-      "label": "colors"
+      "from": "lib",
+      "to": "ingest",
+      "label": ""
     },
     {
       "id": "e30",
-      "from": "hierarchyp",
-      "to": "scenegraph",
-      "label": "tree"
+      "from": "modals",
+      "to": "modalshell",
+      "label": ""
     },
     {
       "id": "e31",
-      "from": "hierarchyp",
-      "to": "plugins",
-      "label": "colors"
+      "from": "lib",
+      "to": "geometry",
+      "label": ""
     },
     {
       "id": "e32",
-      "from": "edgelabel",
-      "to": "usedoubletap",
-      "label": "uses"
+      "from": "lib",
+      "to": "prompt",
+      "label": ""
     },
     {
       "id": "e33",
-      "from": "toolbar",
-      "to": "btn",
-      "label": "uses"
+      "from": "lib",
+      "to": "graph",
+      "label": ""
     },
     {
       "id": "e34",
-      "from": "statusbar",
-      "to": "constants",
-      "label": "hints"
+      "from": "lib",
+      "to": "scenegraph",
+      "label": ""
     },
     {
       "id": "e35",
-      "from": "useinteraction",
-      "to": "constants",
-      "label": "sizes"
+      "from": "lib",
+      "to": "filestorage",
+      "label": ""
     },
     {
       "id": "e36",
-      "from": "usewheelzoom",
-      "to": "constants",
-      "label": "zoom"
+      "from": "lib",
+      "to": "layout",
+      "label": ""
     },
     {
       "id": "e37",
-      "from": "constants",
-      "to": "types",
-      "label": "typed"
+      "from": "lib",
+      "to": "ids",
+      "label": ""
     },
     {
       "id": "e38",
-      "from": "geometry",
-      "to": "constants",
-      "label": "sizes"
+      "from": "lib",
+      "to": "plugins",
+      "label": ""
     },
     {
       "id": "e39",
-      "from": "geometry",
-      "to": "types",
-      "label": "typed"
+      "from": "lib",
+      "to": "anthropic",
+      "label": ""
     },
     {
       "id": "e40",
-      "from": "graph",
-      "to": "types",
-      "label": "typed"
+      "from": "lib",
+      "to": "constants",
+      "label": ""
     },
     {
       "id": "e41",
-      "from": "scenegraph",
+      "from": "lib",
       "to": "types",
-      "label": "typed"
+      "label": ""
     },
     {
       "id": "e42",
-      "from": "layout",
-      "to": "constants",
-      "label": "sizes"
+      "from": "examples",
+      "to": "examplejson",
+      "label": ""
     },
     {
       "id": "e43",
-      "from": "layout",
-      "to": "types",
-      "label": "typed"
+      "from": "examples",
+      "to": "b2bkit",
+      "label": ""
     },
     {
       "id": "e44",
-      "from": "agent",
-      "to": "anthropic",
-      "label": "calls"
-    },
-    {
-      "id": "e45",
-      "from": "agent",
-      "to": "types",
-      "label": "typed"
-    },
-    {
-      "id": "e46",
-      "from": "ingest",
-      "to": "agent",
-      "label": "describes"
-    },
-    {
-      "id": "e47",
-      "from": "ingest",
-      "to": "ids",
-      "label": "ids"
-    },
-    {
-      "id": "e48",
-      "from": "ingest",
-      "to": "layout",
-      "label": "lays out"
-    },
-    {
-      "id": "e49",
-      "from": "ingest",
-      "to": "types",
-      "label": "typed"
-    },
-    {
-      "id": "e50",
-      "from": "prompt",
-      "to": "graph",
-      "label": "toposort"
-    },
-    {
-      "id": "e51",
-      "from": "prompt",
-      "to": "scenegraph",
-      "label": "tree"
-    },
-    {
-      "id": "e52",
-      "from": "prompt",
-      "to": "types",
-      "label": "typed"
-    },
-    {
-      "id": "e53",
-      "from": "filestorage",
-      "to": "types",
-      "label": "typed"
-    },
-    {
-      "id": "e54",
-      "from": "filestorage",
-      "to": "plugins",
-      "label": "embeds"
-    },
-    {
-      "id": "e55",
-      "from": "plugins",
-      "to": "constants",
-      "label": "palette"
-    },
-    {
-      "id": "e56",
-      "from": "promptmodal",
-      "to": "modalshell",
-      "label": "wraps"
-    },
-    {
-      "id": "e57",
-      "from": "promptmodal",
-      "to": "prompt",
-      "label": "builds"
-    },
-    {
-      "id": "e58",
-      "from": "saveloadmodal",
-      "to": "modalshell",
-      "label": "wraps"
-    },
-    {
-      "id": "e59",
-      "from": "saveloadmodal",
-      "to": "filestorage",
-      "label": "io"
-    },
-    {
-      "id": "e60",
-      "from": "ingestmodal",
-      "to": "modalshell",
-      "label": "wraps"
-    },
-    {
-      "id": "e61",
-      "from": "ingestmodal",
-      "to": "ingest",
-      "label": "runs"
-    },
-    {
-      "id": "e62",
-      "from": "pluginmodal",
-      "to": "modalshell",
-      "label": "wraps"
-    },
-    {
-      "id": "e63",
-      "from": "pluginmodal",
-      "to": "plugins",
-      "label": "imports"
-    },
-    {
-      "id": "e64",
-      "from": "mobiletest",
-      "to": "vibe",
-      "label": "drives"
-    },
-    {
-      "id": "e65",
-      "from": "layouttest",
-      "to": "vibe",
-      "label": "probes"
-    },
-    {
-      "id": "e66",
-      "from": "examplestest",
-      "to": "filestorage",
-      "label": "loads"
-    },
-    {
-      "id": "e67",
-      "from": "examplestest",
-      "to": "scenegraph",
-      "label": "renders"
-    },
-    {
-      "id": "e68",
-      "from": "examplestest",
-      "to": "examplejson",
-      "label": "checks"
-    },
-    {
-      "id": "e69",
-      "from": "pluginstest",
-      "to": "vibe",
-      "label": "drives"
-    },
-    {
-      "id": "e70",
-      "from": "pluginstest",
-      "to": "filestorage",
-      "label": "round-trips"
-    },
-    {
-      "id": "e71",
-      "from": "pluginstest",
-      "to": "plugins",
-      "label": "checks"
-    },
-    {
-      "id": "e72",
-      "from": "makeexample",
-      "to": "examplejson",
-      "label": "writes"
+      "from": "scripts",
+      "to": "makeexample",
+      "label": ""
     }
   ],
   "mode": "parallel"

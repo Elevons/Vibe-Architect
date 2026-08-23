@@ -2,7 +2,8 @@
  * Example graph check: loads examples/vibe-architect.json through the app's
  * own load pipeline (LoadGraphFromFile → ParseGraphSnapshot) and verifies the
  * snapshot is well-formed: expected counts, edge endpoints and parent links
- * all resolve, no parent cycles, and every node renders.
+ * all resolve, no parent cycles, every node renders, and the edge set is
+ * exactly the folder → child grouping links (no file-to-file noodles).
  */
 import { LoadGraphFromFile } from "../src/lib/fileStorage";
 import { ComputeRenderedSet } from "../src/lib/sceneGraph";
@@ -26,7 +27,7 @@ async function run(): Promise<void> {
 
   const { nodes, edges } = snapshot;
   pass("node count", nodes.length === 48, `got ${nodes.length}`);
-  pass("edge count", edges.length === 72, `got ${edges.length}`);
+  pass("edge count", edges.length === 44, `got ${edges.length}`);
   pass("mode", snapshot.mode === "parallel", snapshot.mode);
 
   const ids = new Set(nodes.map(node => node.id));
@@ -63,6 +64,15 @@ async function run(): Promise<void> {
 
   const rendered = ComputeRenderedSet(nodes);
   pass("every node renders", rendered.size === nodes.length, `rendered ${rendered.size}/${nodes.length}`);
+
+  // Edges are grouping: exactly one folder → child edge per parent link,
+  // never a file-to-file noodle.
+  const typeById = new Map(nodes.map(node => [node.id, node.type]));
+  const nonGrouping = edges.filter(edge => typeById.get(edge.from) !== "folder");
+  pass("every edge starts at a folder", nonGrouping.length === 0, `${nonGrouping.length} file-sourced`);
+  const expectedPairs = new Set(nodes.filter(node => node.parentId !== null).map(node => `${node.parentId}->${node.id}`));
+  const actualPairs = new Set(edges.map(edge => `${edge.from}->${edge.to}`));
+  pass("edge set matches parent links", expectedPairs.size === actualPairs.size && [...expectedPairs].every(pair => actualPairs.has(pair)));
 
   const pre = document.getElementById("results") as HTMLElement;
   pre.textContent = results.join("\n");
