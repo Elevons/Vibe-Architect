@@ -187,7 +187,12 @@ function renderCollapsedCard(
     >
       <div
         onPointerDown={node.type === "folder" ? event => { event.stopPropagation(); props.onGroupDragStart(event, node.id); } : undefined}
-        style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 46, cursor: node.type === "folder" ? "grab" : "default" }}>
+        style={{
+          display: "flex", alignItems: "center", gap: 6, paddingRight: 46,
+          cursor: node.type === "folder" ? "grab" : "default", touchAction: "none",
+          background: node.type === "folder" ? "#ffffff08" : "transparent",
+          borderBottom: node.type === "folder" ? "1px solid #ffffff14" : "none", borderRadius: 4,
+        }}>
         <span style={{ color: colors.dot, fontSize: 12, lineHeight: 1 }}>▣</span>
         <span style={{
           fontFamily: FONT, fontSize: 12, fontWeight: 700, color: "#e8e8f0",
@@ -302,7 +307,12 @@ function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], b
     <div onDoubleClick={beginEdit}>
       <div
         onPointerDown={isFolder && onGroupDragStart ? event => { event.stopPropagation(); onGroupDragStart(event, node.id); } : undefined}
-        style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingRight: isParent ? 48 : 28, cursor: isFolder ? "grab" : "default" }}>
+        style={{
+          display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingRight: isParent ? 48 : 28,
+          cursor: isFolder ? "grab" : "default", touchAction: "none",
+          background: isFolder ? "#ffffff08" : "transparent",
+          borderBottom: isFolder ? "1px solid #ffffff14" : "none", borderRadius: "4px 4px 0 0",
+        }}>
         {node.agentStatus !== "idle" && (
           <span style={{
             width: 8, height: 8, borderRadius: "50%", background: statusColor, flexShrink: 0,
