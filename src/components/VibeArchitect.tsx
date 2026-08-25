@@ -5,7 +5,7 @@ import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
 import { RunAgent } from "../lib/agent";
 import { FONT, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
-import { DescendantBounds, EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
+import { DescendantBounds, AttachmentEdgePath, EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
 import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
 import { DagLayout } from "../lib/layout";
@@ -72,11 +72,33 @@ export function VibeArchitect() {
   // model — the graph is an architecture doc, not an import map.
   const addEdge = (from: string, to: string): void => {
     const fromNode = nodes.find(node => node.id === from);
-    if (fromNode === undefined || fromNode.type !== "folder") {
+    const toNode = nodes.find(node => node.id === to);
+    if (fromNode === undefined || toNode === undefined) {
+      return;
+    }
+    // Objects are aggregates, not grouping children: a folder's grouping
+    // noodle landing on an object is a no-op. Attach to an object via the
+    // object's own port instead (see addAttachment).
+    if (toNode.type === "object") {
       return;
     }
     setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
     setNodes(prev => SetParent(prev, to, from));
+  };
+
+  /** Attach `to` as a component of the object `from` (an object→component noodle). */
+  const addAttachment = (from: string, to: string): void => {
+    const objectNode = nodes.find(node => node.id === from);
+    if (objectNode === undefined || objectNode.type !== "object") {
+      return;
+    }
+    if (from === to) {
+      return;
+    }
+    setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
+    setNodes(prev => prev.map(node => node.id === from
+      ? { ...node, componentIds: [...new Set([...(node.componentIds ?? []), to])] }
+      : node));
   };
 
   /**
@@ -100,8 +122,22 @@ export function VibeArchitect() {
       : node));
   };
 
-  const { panning, pointerPos, edgeDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge } =
-    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge });
+  const { panning, pointerPos, edgeDraft, attachDraft, canvasPointerDown, handleDragStart, handleStartEdge, handleEndEdge, handleStartAttachment, handleEndAttachment } =
+    useCanvasInteraction({ canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge, addAttachment });
+
+  /**
+   * Release over a node's input port: an in-progress object attachment wins;
+   * otherwise a folder grouping edge commits. One entry point for every card's
+   * top port, so objects (which receive attachments) and folders (which
+   * receive grouping) share the same drop target.
+   */
+  const onPortEnd = (toId: string): void => {
+    if (attachDraft !== null) {
+      handleEndAttachment(toId);
+    } else {
+      handleEndEdge(toId);
+    }
+  };
   useWheelZoom(canvasRef, pan, zoom, setPan, setZoom);
 
   const nodeMap = useMemo(() => BuildNodeMap(nodes), [nodes]);
@@ -365,10 +401,14 @@ export function VibeArchitect() {
             <marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#555" />
             </marker>
+            <marker id="at" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#22d3ee" />
+            </marker>
           </defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             {renderEdges(edges, nodeMap, rendered, zoom, nodeSizes, updateEdgeLabel, deleteEdge)}
             {renderEdgeDraft(edgeDraft, rect, nodeMap, pointerPos, pan, zoom, nodeSizes)}
+            {renderAttachmentDraft(attachDraft, rect, nodeMap, pointerPos, pan, zoom, nodeSizes)}
           </g>
         </svg>
 
@@ -377,7 +417,7 @@ export function VibeArchitect() {
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
         }}>
-          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
+          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleStartAttachment, onPortEnd, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
           {/* Group drag handles — rendered after the cards in the same layer so a
               handle is always painted above the cards (never occluded) and is
               grabbable. */}
@@ -386,7 +426,7 @@ export function VibeArchitect() {
 
         {nodes.length === 0 && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <p style={{ color: "#444", fontSize: 14, fontFamily: FONT }}>Add a file, folder, or concept to start designing</p>
+            <p style={{ color: "#444", fontSize: 14, fontFamily: FONT }}>Add a file, folder, concept, or object to start designing</p>
           </div>
         )}
 
@@ -572,13 +612,17 @@ function renderEdges(
     if (!rendered.has(edge.from) || !rendered.has(edge.to)) {
       return null;
     }
-    const pointA = PortOut(from, nodeSizes[edge.from]);
+    // Object→component attachments anchor at the object's top port and are
+    // drawn in the object accent so they read as a distinct relationship.
+    const isAttachment = from.type === "object";
+    const pointA = isAttachment ? PortIn(from, nodeSizes[edge.from]) : PortOut(from, nodeSizes[edge.from]);
     const pointB = PortIn(to, nodeSizes[edge.to]);
-    const path = EdgePathFromPoints(pointA, pointB);
+    const path = isAttachment ? AttachmentEdgePath(from, to, nodeSizes[edge.from], nodeSizes[edge.to]) : EdgePathFromPoints(pointA, pointB);
     const mid = { x: (pointA.x + pointB.x) / 2, y: (pointA.y + pointB.y) / 2 };
+    const color = isAttachment ? "#22d3ee" : "#333";
     return (
       <g key={edge.id}>
-        <path d={path} stroke="#333" strokeWidth={2 / zoom} fill="none" markerEnd="url(#ah)" />
+        <path d={path} stroke={color} strokeWidth={2 / zoom} fill="none" markerEnd={isAttachment ? "url(#at)" : "url(#ah)"} />
         <path
           d={path}
           stroke="transparent"
@@ -629,6 +673,39 @@ function renderEdgeDraft(
   );
 }
 
+/** The in-progress dashed attachment from an object's port to the cursor. */
+function renderAttachmentDraft(
+  attachDraft: { from: string; to: string | null } | null,
+  rect: DOMRect | undefined,
+  nodeMap: Map<string, GraphNode>,
+  mousePos: Point,
+  pan: Point,
+  zoom: number,
+  nodeSizes: Record<string, NodeSize>,
+) {
+  if (attachDraft === null || rect === undefined) {
+    return null;
+  }
+  const fromNode = nodeMap.get(attachDraft.from);
+  if (fromNode === undefined) {
+    return null;
+  }
+  const from = PortIn(fromNode, nodeSizes[attachDraft.from]);
+  const toX = (mousePos.x - rect.left - pan.x) / zoom;
+  const toY = (mousePos.y - rect.top - pan.y) / zoom;
+  return (
+    <line
+      x1={from.x}
+      y1={from.y}
+      x2={toX}
+      y2={toY}
+      stroke="#22d3ee"
+      strokeWidth={2 / zoom}
+      strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+    />
+  );
+}
+
 /** All rendered nodes as cards. */
 function renderNodes(
   nodes: GraphNode[],
@@ -640,6 +717,8 @@ function renderNodes(
   deleteNode: (id: string) => void,
   handleStartEdge: (id: string, event: ReactPointerEvent) => void,
   handleEndEdge: (id: string) => void,
+  handleStartAttachment: (id: string, event: ReactPointerEvent) => void,
+  onPortEnd: (id: string) => void,
   handleRunAgent: (id: string) => void,
   zoom: number,
   toggleCollapse: (id: string) => void,
@@ -663,6 +742,8 @@ function renderNodes(
       onDelete={deleteNode}
       onStartEdge={handleStartEdge}
       onEndEdge={handleEndEdge}
+      onStartAttachment={handleStartAttachment}
+      onPortEnd={onPortEnd}
       onRunAgent={id => void handleRunAgent(id)}
       onToggleCollapse={toggleCollapse}
       onSetVisible={setVisible}

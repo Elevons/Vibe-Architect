@@ -20,6 +20,12 @@ interface EdgeDraft {
   to: string | null;
 }
 
+/** An in-progress object→component attachment (from = the object). */
+interface AttachmentDraft {
+  from: string;
+  to: string | null;
+}
+
 interface CanvasInteractionOptions {
   canvasRef: { current: HTMLDivElement | null };
   nodes: GraphNode[];
@@ -32,6 +38,7 @@ interface CanvasInteractionOptions {
   updateNode: (id: string, patch: Partial<GraphNode>) => void;
   moveSubtree: (rootId: string, x: number, y: number) => void;
   addEdge: (from: string, to: string) => void;
+  addAttachment: (from: string, to: string) => void;
 }
 
 export interface CanvasInteraction {
@@ -39,10 +46,13 @@ export interface CanvasInteraction {
   draggingId: string | null;
   pointerPos: Point;
   edgeDraft: EdgeDraft | null;
+  attachDraft: AttachmentDraft | null;
   canvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void;
   handleStartEdge: (fromId: string, event: ReactPointerEvent) => void;
   handleEndEdge: (toId: string) => void;
+  handleStartAttachment: (objectId: string, event: ReactPointerEvent) => void;
+  handleEndAttachment: (toId: string) => void;
 }
 
 /** A pointer currently pressed, in client (screen) coordinates. */
@@ -60,12 +70,13 @@ interface ActivePointer {
 const PAN_DEADZONE = 6;
 
 export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasInteraction {
-  const { canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge } = options;
+  const { canvasRef, nodes, edges, pan, zoom, setPan, setZoom, setSelected, updateNode, moveSubtree, addEdge, addAttachment } = options;
 
   const [panning, setPanning] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pointerPos, setPointerPos] = useState<Point>({ x: 0, y: 0 });
   const [edgeDraft, setEdgeDraft] = useState<EdgeDraft | null>(null);
+  const [attachDraft, setAttachDraft] = useState<AttachmentDraft | null>(null);
 
   // Live mirrors of pan/zoom. setPan/setZoom are batched, so the render
   // closure can be stale for a frame or two; a fast second finger landing
@@ -95,6 +106,10 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   // True while the active drag moves a folder's whole subtree (group drag)
   // rather than a single node.
   const draggingGroupRef = useRef(false);
+  // Pointer currently dragging out of an object's port to attach a component.
+  const attachingPointerId = useRef<number | null>(null);
+  // Pointer currently dragging out of an output port to draw a grouping edge.
+  const edgePointerId = useRef<number | null>(null);
   // Pan bookkeeping: pointer position minus pan at the moment panning began.
   const panStart = useRef<Point | null>(null);
   // First finger's client position at pan start, for the pan deadzone.
@@ -153,6 +168,17 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
         dragPointerId.current = null;
         draggingGroupRef.current = false;
         setDraggingId(null);
+        setEdgeDraft(null);
+      }
+      if (attachingPointerId.current === event.pointerId) {
+        attachingPointerId.current = null;
+        setAttachDraft(null);
+      }
+      // A grouping edge that is released over empty space (not over an input
+      // port) must drop its draft, or the noodle stays "sticky" and keeps
+      // following the cursor.
+      if (edgePointerId.current === event.pointerId) {
+        edgePointerId.current = null;
         setEdgeDraft(null);
       }
       if (panning && pointers.current.length === 0) {
@@ -238,6 +264,7 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   // ── Press on an output port: begin an edge draft ──
   const handleStartEdge = (fromId: string, event: ReactPointerEvent): void => {
     setEdgeDraft({ from: fromId, to: null });
+    edgePointerId.current = event.pointerId;
     setPointerPos({ x: event.clientX, y: event.clientY });
   };
 
@@ -251,6 +278,27 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
       addEdge(edgeDraft.from, toId);
     }
     setEdgeDraft(null);
+    edgePointerId.current = null;
+  };
+
+  // ── Press on an object's port: begin an attachment draft ──
+  const handleStartAttachment = (objectId: string, event: ReactPointerEvent): void => {
+    setAttachDraft({ from: objectId, to: null });
+    attachingPointerId.current = event.pointerId;
+    setPointerPos({ x: event.clientX, y: event.clientY });
+  };
+
+  // ── Release over a node: commit the attachment draft ──
+  const handleEndAttachment = (toId: string): void => {
+    if (
+      attachDraft !== null
+      && attachDraft.from !== toId
+      && !edges.some(edge => edge.from === attachDraft.from && edge.to === toId)
+    ) {
+      addAttachment(attachDraft.from, toId);
+    }
+    setAttachDraft(null);
+    attachingPointerId.current = null;
   };
 
   return {
@@ -258,10 +306,13 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
     draggingId,
     pointerPos,
     edgeDraft,
+    attachDraft,
     canvasPointerDown,
     handleDragStart,
     handleStartEdge,
     handleEndEdge,
+    handleStartAttachment,
+    handleEndAttachment,
   };
 }
 

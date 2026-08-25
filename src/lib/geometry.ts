@@ -50,6 +50,18 @@ export function EdgePath(from: GraphNode, to: GraphNode, fromSize?: NodeSize, to
   return EdgePathFromPoints(PortOut(from, fromSize), PortIn(to, toSize));
 }
 
+/**
+ * Path for an object→component attachment noodle. Both endpoints anchor at
+ * the node's top (input) edge, so the curve bows sideways between them rather
+ * than flowing top-to-bottom like a grouping edge.
+ */
+export function AttachmentEdgePath(from: GraphNode, to: GraphNode, fromSize?: NodeSize, toSize?: NodeSize): string {
+  const a = PortIn(from, fromSize);
+  const b = PortIn(to, toSize);
+  const run = Math.max(20, Math.abs(b.x - a.x) * 0.5);
+  return `M${a.x},${a.y} C${a.x + run},${a.y} ${b.x - run},${b.y} ${b.x},${b.y}`;
+}
+
 /** Midpoint of an edge between two nodes. */
 export function EdgeMidpoint(from: GraphNode, to: GraphNode, fromSize?: NodeSize, toSize?: NodeSize): Point {
   const out = PortOut(from, fromSize);

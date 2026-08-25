@@ -113,6 +113,31 @@ async function run(): Promise<void> {
   const builtInTypes = builtIn !== null ? builtIn.nodes.map(node => node.type).join(",") : "null";
   pass("built-in types survive round-trip", builtInTypes === "file,folder,concept,file", builtInTypes);
 
+  // An object's attached components (componentIds) and its teal attachment
+  // edge must survive a save/load round-trip.
+  const objectText = JSON.stringify({
+    nodes: [
+      { id: "o1", x: 0, y: 0, name: "player", path: "", desc: "", type: "object", parentId: null, visible: true, collapsed: false, componentIds: ["c1", "c2"] },
+      { id: "c1", x: 0, y: 0, name: "mesh", path: "", desc: "", type: "file", parentId: null, visible: true, collapsed: false },
+      { id: "c2", x: 0, y: 0, name: "script", path: "", desc: "", type: "file", parentId: null, visible: true, collapsed: false },
+    ],
+    edges: [{ id: "e1", from: "o1", to: "c1", label: "" }, { id: "e2", from: "o1", to: "c2", label: "" }],
+    mode: "parallel",
+  });
+  const roundTrippedObject = ParseGraphSnapshot(objectText);
+  const obj = roundTrippedObject?.nodes.find(node => node.id === "o1");
+  const attachmentEdges = roundTrippedObject?.edges.filter(edge => edge.from === "o1").length ?? 0;
+  pass(
+    "object keeps attached components and edges across round-trip",
+    obj !== undefined
+      && Array.isArray(obj.componentIds)
+      && obj.componentIds.length === 2
+      && obj.componentIds.includes("c1")
+      && obj.componentIds.includes("c2")
+      && attachmentEdges === 2,
+    `componentIds=${obj === undefined ? "n/a" : JSON.stringify(obj.componentIds)} attachmentEdges=${attachmentEdges}`,
+  );
+
   // A custom type whose plugin is absent falls back to concept, not file.
   const noPluginText = JSON.stringify({
     nodes: [{ id: "n2", x: 0, y: 0, name: "Ghost", path: "", desc: "", type: "b2b:export", parentId: null, visible: true, collapsed: false }],
@@ -126,9 +151,14 @@ async function run(): Promise<void> {
   createRoot(document.getElementById("root") as HTMLElement).render(<VibeArchitect />);
   await nextFrame();
 
-  const pluginsButton = buttonWithText("🧩 Plugins");
-  pass("toolbar has a Plugins button", pluginsButton !== undefined);
-  pluginsButton?.click();
+  // Open the Plugins ▾ dropdown and trigger import from its top button.
+  const pluginsMenuButton = buttonWithText("Plugins ▾");
+  pass("toolbar has the Plugins dropdown", pluginsMenuButton !== undefined);
+  pluginsMenuButton?.click();
+  await nextFrame();
+  const importTrigger = buttonWithText("Import plugin…");
+  pass("Plugins dropdown has an Import button", importTrigger !== undefined);
+  importTrigger?.click();
   await nextFrame();
 
   const importButton = buttonWithText("Import plugin file…");
@@ -157,22 +187,20 @@ async function run(): Promise<void> {
   closeButtons.find(button => button.textContent === "✕")?.click();
   await nextFrame();
 
-  // ── UI: Add ▾ → Custom nodes → blender2babylon-kit → Export ──
-  const addButton = buttonWithText("Add ▾");
-  pass("toolbar has the Add dropdown", addButton !== undefined);
-  addButton?.click();
+  // ── UI: Plugins ▾ → blender2babylon-kit → Export ──
+  const dropdownButton = buttonWithText("Plugins ▾");
+  pass("toolbar has the Plugins dropdown", dropdownButton !== undefined);
+  dropdownButton?.click();
   await nextFrame();
 
   const menu = Array.from(document.querySelectorAll("div")).find(div => {
     const style = div.getAttribute("style") ?? "";
     return style.includes("position: fixed") && style.includes("z-index: 1100");
   });
-  pass("Add menu opens", menu !== undefined);
-  const customHeader = menu !== undefined ? Array.from(menu.querySelectorAll("div")).find(div => (div.textContent ?? "").trim() === "Custom nodes") : undefined;
-  pass("menu has a Custom nodes section", customHeader !== undefined);
+  pass("Plugins dropdown opens", menu !== undefined);
 
   const packageButton = menu !== undefined ? Array.from(menu.querySelectorAll("button")).find(button => (button.textContent ?? "").includes("blender2babylon-kit")) : undefined;
-  pass("menu lists the package", packageButton !== undefined);
+  pass("dropdown lists the package", packageButton !== undefined);
   packageButton?.click();
   await nextFrame();
 

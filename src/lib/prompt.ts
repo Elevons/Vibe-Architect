@@ -33,6 +33,12 @@ export function BuildArchitecturePrompt(
   lines.push("Create each folder (directory) below if it does not already exist, then create each file at its listed path if it does not already exist.\n");
   RenderFileLayout(nodes, nodeById, lines);
 
+  // Objects aggregate components (dragged into an object's port). They are not
+  // files, so they don't belong in the placement list; describe the attachment
+  // so the agent understands which nodes belong to which object.
+  lines.push("## Objects");
+  RenderObjects(nodes, nodeById, lines);
+
   // Edges are grouping (folder → child); the structure tree above carries
   // them, so the module list needs no per-edge context lines. Serial mode
   // still orders modules topologically (folders before their children).
@@ -118,6 +124,32 @@ function RenderFileLayout(
     }
     lines.push("");
   }
+}
+
+/**
+ * Objects and the components attached to them. Components stay where they are;
+ * an object merely references them, so list each object with its attached
+ * component ids/names.
+ */
+function RenderObjects(
+  nodes: GraphNode[],
+  nodeById: Map<string, GraphNode>,
+  lines: string[],
+): void {
+  const objects = nodes.filter(node => node.type === "object");
+  if (objects.length === 0) {
+    return;
+  }
+  lines.push("**Objects (aggregate these components):**");
+  for (const object of objects) {
+    const attached = (object.componentIds ?? [])
+      .map(id => nodeById.get(id))
+      .filter((node): node is GraphNode => node !== undefined)
+      .map(node => `${node.name} [${node.type}]`)
+      .join(", ");
+    lines.push(`- ${NodePath(object, nodeById)}${attached === "" ? " (no components)" : ` → ${attached}`}`);
+  }
+  lines.push("");
 }
 
 /**

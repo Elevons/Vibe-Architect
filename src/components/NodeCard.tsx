@@ -34,6 +34,8 @@ interface NodeCardProps {
   onDelete: (id: string) => void;
   onStartEdge: (id: string, event: ReactPointerEvent) => void;
   onEndEdge: (id: string) => void;
+  onStartAttachment: (id: string, event: ReactPointerEvent) => void;
+  onPortEnd: (id: string) => void;
   onRunAgent: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onSetVisible: (id: string, visible: boolean) => void;
@@ -165,6 +167,15 @@ function renderCollapsedCard(
   cardRef: RefObject<HTMLDivElement>,
   props: NodeCardProps,
 ) {
+  // Objects aggregate components (componentIds) rather than nesting children,
+  // so their compact count reflects attached components instead of descendants.
+  const componentCount = node.componentIds?.length ?? 0;
+  const isObject = node.type === "object";
+  const headerLabel = isObject
+    ? `${componentCount} component${componentCount === 1 ? "" : "s"}`
+    : `${descendantCount} item${descendantCount === 1 ? "" : "s"}`;
+  const glyph = isObject ? "◉" : "▣";
+  const isDraggableHeader = node.type === "folder" || isObject;
   return (
     <div
       ref={cardRef}
@@ -186,23 +197,21 @@ function renderCollapsedCard(
       }}
     >
       <div
-        onPointerDown={node.type === "folder" ? event => { event.stopPropagation(); props.onGroupDragStart(event, node.id); } : undefined}
+        onPointerDown={isDraggableHeader ? event => { event.stopPropagation(); props.onGroupDragStart(event, node.id); } : undefined}
         style={{
           display: "flex", alignItems: "center", gap: 6, paddingRight: 46,
-          cursor: node.type === "folder" ? "grab" : "default", touchAction: "none",
-          background: node.type === "folder" ? "#ffffff08" : "transparent",
-          borderBottom: node.type === "folder" ? "1px solid #ffffff14" : "none", borderRadius: 4,
+          cursor: isDraggableHeader ? "grab" : "default", touchAction: "none",
+          background: isDraggableHeader ? "#ffffff08" : "transparent",
+          borderBottom: isDraggableHeader ? "1px solid #ffffff14" : "none", borderRadius: 4,
         }}>
-        <span style={{ color: colors.dot, fontSize: 12, lineHeight: 1 }}>▣</span>
+        <span style={{ color: colors.dot, fontSize: 12, lineHeight: 1 }}>{glyph}</span>
         <span style={{
           fontFamily: FONT, fontSize: 12, fontWeight: 700, color: "#e8e8f0",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{node.name}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: FONT, fontSize: 9, color: "#666" }}>
-          {descendantCount} item{descendantCount === 1 ? "" : "s"}
-        </span>
+        <span style={{ fontFamily: FONT, fontSize: 9, color: "#666" }}>{headerLabel}</span>
         <button
           onClick={event => { event.stopPropagation(); props.onToggleCollapse(node.id); }}
           onPointerDown={event => event.stopPropagation()}
@@ -214,7 +223,7 @@ function renderCollapsedCard(
           Expand ▾
         </button>
       </div>
-      {renderCornerControls(node, true, props)}
+      {renderCornerControls(node, isObject || descendantCount > 0, props)}
     </div>
   );
 }
@@ -268,7 +277,13 @@ function AgentStatusColor(status: GraphNode["agentStatus"]): string {
  * Ports. Folders emit grouping noodles (output port on the bottom edge) and
  * can nest inside other folders (input port on the top edge). Files and
  * concepts only receive grouping noodles — they have no output port, so
- * file-to-file noodles are impossible by construction.
+ * file-to-file noodles are impossible by construction. Objects have no
+ * output port either; their input port (top edge) is the *source* of an
+ * attachment — pressing and dragging it reaches out to grab a component.
+ *
+ * Every input port commits whatever draft is active on release: an
+ * in-progress object attachment (handled upstream) or a folder grouping
+ * edge.
  */
 function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardProps) {
   const base: CSSProperties = {
@@ -276,10 +291,18 @@ function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardPr
     width: 18, height: 18, borderRadius: "50%", background: colors.dot,
     border: "2px solid #111", cursor: "crosshair", zIndex: 20, touchAction: "none",
   };
+  // The input port's onPointerUp must NOT stopPropagation: the release has to
+  // bubble up to the window-level pointerup handler, which is the only place a
+  // node drag is ended. (A press on the port bubbles to the card body and
+  // starts a node drag; if we swallowed the release here, the node would stay
+  // glued to the cursor forever.) onPortEnd still commits any in-progress
+  // grouping/attachment edge, and the window handler is a no-op for those
+  // because the drafts are already cleared.
   const inputPort = (
     <div
       style={{ ...base, top: -9, opacity: 0.5 }}
-      onPointerUp={event => { event.stopPropagation(); props.onEndEdge(node.id); }}
+      onPointerDown={node.type === "object" ? event => { event.stopPropagation(); props.onStartAttachment(node.id, event); } : undefined}
+      onPointerUp={() => props.onPortEnd(node.id)}
     />
   );
   if (node.type !== "folder") {
@@ -336,6 +359,30 @@ function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], b
       )}
       {node.parentId !== null && parentName !== "" && (
         <span style={{ fontSize: 9, color: "#666", marginTop: 2, display: "inline-block" }}>⤷ {parentName}</span>
+      )}
+      {node.type === "object" && (node.componentIds?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+          {node.componentIds!.slice(0, 3).map(componentId => {
+            const component = nodes.find(candidate => candidate.id === componentId);
+            if (component === undefined) {
+              return null;
+            }
+            const componentColors = ColorsForType(component.type, plugins);
+            return (
+              <span key={componentId} style={{
+                display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, color: "#bbb",
+                background: "#0a0a0f", border: "1px solid #ffffff22", borderRadius: 4,
+                padding: "2px 6px", fontFamily: FONT,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: componentColors.dot, flexShrink: 0 }} />
+                {component.name}
+              </span>
+            );
+          })}
+          {(node.componentIds?.length ?? 0) > 3 && (
+            <span style={{ fontSize: 9, color: "#666", fontFamily: FONT }}>+{(node.componentIds!.length ?? 0) - 3} more</span>
+          )}
+        </div>
       )}
     </div>
   );

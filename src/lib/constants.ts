@@ -1,7 +1,7 @@
 import type { RunMode, TypeColors } from "./types";
 
-/** The three built-in node types (plugin types are open-ended). */
-export type BuiltInNodeType = "file" | "folder" | "concept";
+/** The four built-in node types (plugin types are open-ended). */
+export type BuiltInNodeType = "file" | "folder" | "concept" | "object";
 
 /** Canvas node dimensions in world units. */
 export const NODE_W = 280;
@@ -19,6 +19,7 @@ export const TYPE_COLORS: Record<BuiltInNodeType, TypeColors> = {
   file: { bg: "#1a1a2f", border: "#818cf8", dot: "#818cf8" },
   folder: { bg: "#1a2f1a", border: "#4ade80", dot: "#4ade80" },
   concept: { bg: "#2f2a1a", border: "#facc15", dot: "#facc15" },
+  object: { bg: "#1a2f2f", border: "#22d3ee", dot: "#22d3ee" },
 };
 
 /** Semi-transparent fill colors cycled across groups. */

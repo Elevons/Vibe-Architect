@@ -57,26 +57,13 @@ function parseTransform(): { x: number; y: number; zoom: number } {
 
 const nextFrame = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60));
 
-/** Add a node through the Add ▾ toolbar dropdown (built-in row). */
+/** Add a node via the inline built-in toolbar buttons (File/Folder/Concept/Object). */
 async function addViaMenu(label: string): Promise<void> {
-  const addButton = Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Add ▾");
+  const addButton = Array.from(document.querySelectorAll("button")).find(button => (button.textContent ?? "").trim() === label);
   if (addButton === undefined) {
-    throw new Error("Add ▾ button not found");
+    throw new Error(`Add button "${label}" not found`);
   }
   addButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  await nextFrame();
-  const menu = Array.from(document.querySelectorAll("div")).find(div => {
-    const style = div.getAttribute("style") ?? "";
-    return style.includes("position: fixed") && style.includes("z-index: 1100");
-  });
-  if (menu === undefined) {
-    throw new Error("Add menu did not open");
-  }
-  const item = Array.from(menu.querySelectorAll("button")).find(button => (button.textContent ?? "").trim() === label);
-  if (item === undefined) {
-    throw new Error(`menu item "${label}" not found`);
-  }
-  item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   await nextFrame();
 }
 
@@ -646,6 +633,78 @@ async function run(): Promise<void> {
     `folder=(+${deltas.folder.x.toFixed(1)},+${deltas.folder.y.toFixed(1)}) file1=(+${deltas.file1.x.toFixed(1)},+${deltas.file1.y.toFixed(1)}) file2=(+${deltas.file2.x.toFixed(1)},+${deltas.file2.y.toFixed(1)}) expected≈(+${expectedDelta.x.toFixed(1)},+${expectedDelta.y.toFixed(1)})`,
   );
 
+  // ── Test 16b: releasing a grouping drag over empty space drops the noodle ──
+  // Regression: the edge draft used to stay "sticky" after a release over
+  // empty space, so the dashed noodle kept following the cursor.
+  const outPort16b = folderCard16.querySelector("[title='Drag to group']") as HTMLElement;
+  if (outPort16b === null) {
+    throw new Error("folder output port not found (test 16b)");
+  }
+  const draftNoodles = (): number =>
+    Array.from(document.querySelectorAll("line")).filter(line =>
+      (line.getAttribute("stroke") ?? "") === "#818cf8"
+      && (line.getAttribute("stroke-dasharray") ?? "") !== "").length;
+  const ob16b = outPort16b.getBoundingClientRect();
+  // Start the drag from the output port, then move to a spot that is far from
+  // any card (a corner of the canvas) so the release can't land on a port.
+  fire(outPort16b, "pointerdown", ob16b.left + 5, ob16b.top + 5, 1);
+  await nextFrame();
+  const emptyX = 4, emptyY = window.innerHeight - 4;
+  fire(outPort16b, "pointermove", emptyX, emptyY, 1);
+  await nextFrame();
+  const draftWhileDragging = draftNoodles();
+  fire(canvas, "pointerup", emptyX, emptyY, 1);
+  await nextFrame();
+  const draftAfterRelease = draftNoodles();
+  pass(
+    "releasing a grouping drag over empty space drops the noodle",
+    draftWhileDragging >= 1 && draftAfterRelease === 0,
+    `whileDragging=${draftWhileDragging} afterRelease=${draftAfterRelease}`,
+  );
+
+  // ── Test 16c: releasing over a node's top port ends the node drag ──
+  // Regression: a press on the input (top) port bubbles to the card body and
+  // starts a node drag. The port's onPointerUp used to stopPropagation, which
+  // kept the release from reaching the window handler that ends the drag — so
+  // the node stayed glued to the cursor and could never be dropped.
+  const cards16c = nodeCards();
+  const fileCard16c = cards16c.find(card => card.querySelector("[title='Drag to group']") === null);
+  const inPort16c = fileCard16c !== undefined
+    ? Array.from(fileCard16c.querySelectorAll("div")).find(div => div.style.opacity === "0.5")
+    : undefined;
+  if (fileCard16c === undefined || inPort16c === undefined) {
+    throw new Error("file card with an input port not found (test 16c)");
+  }
+  const worldPos16c = (): { x: number; y: number } => ({ x: parseFloat(fileCard16c.style.left), y: parseFloat(fileCard16c.style.top) });
+  const ib16c = inPort16c.getBoundingClientRect();
+  const downX = ib16c.left + 5, downY = ib16c.top + 5;
+  const posBefore = worldPos16c();
+  // Press the top port → starts a node drag; move → the node follows.
+  fire(inPort16c, "pointerdown", downX, downY, 1);
+  await nextFrame();
+  fire(inPort16c, "pointermove", downX + 60, downY + 40, 1);
+  await nextFrame();
+  const posWhileDragging = worldPos16c();
+  // Release over the port → the drag must end.
+  fire(inPort16c, "pointerup", downX + 60, downY + 40, 1);
+  await nextFrame();
+  const posAfterRelease = worldPos16c();
+  // Move again: if the drag truly ended, the node must NOT follow the cursor.
+  fire(canvas, "pointermove", downX + 140, downY + 120, 1);
+  await nextFrame();
+  const posAfterMove = worldPos16c();
+  // The node moved from its original spot while dragging (it followed the cursor).
+  const nodeFollowedWhileDragging =
+    Math.abs(posWhileDragging.x - posBefore.x) > 0.5 || Math.abs(posWhileDragging.y - posBefore.y) > 0.5;
+  // After release, moving the cursor must not move the node (drag is over).
+  const nodeStoppedOnRelease =
+    Math.abs(posAfterRelease.x - posAfterMove.x) < 0.5 && Math.abs(posAfterRelease.y - posAfterMove.y) < 0.5;
+  pass(
+    "releasing over a node's top port ends the node drag",
+    nodeFollowedWhileDragging && nodeStoppedOnRelease,
+    `before=(${posBefore.x.toFixed(1)},${posBefore.y.toFixed(1)}) whileDrag=(${posWhileDragging.x.toFixed(1)},${posWhileDragging.y.toFixed(1)}) afterRelease=(${posAfterRelease.x.toFixed(1)},${posAfterRelease.y.toFixed(1)}) afterMove=(${posAfterMove.x.toFixed(1)},${posAfterMove.y.toFixed(1)})`,
+  );
+
   // ── Test 17: dragging the grouping-box handle moves the whole subtree ──
   // The dashed background box that wraps a folder + its children now carries a
   // grip handle (⠿) at its top-left corner. Grabbing that handle must move the
@@ -699,6 +758,73 @@ async function run(): Promise<void> {
     "grouping-box handle moves the whole subtree",
     handleMovedTogether,
     `folder=(+${deltas17.folder.x.toFixed(1)},+${deltas17.folder.y.toFixed(1)}) file1=(+${deltas17.file1.x.toFixed(1)},+${deltas17.file1.y.toFixed(1)}) file2=(+${deltas17.file2.x.toFixed(1)},+${deltas17.file2.y.toFixed(1)}) expected≈(+${expectedDelta17.x.toFixed(1)},+${expectedDelta17.y.toFixed(1)})`,
+  );
+
+  // ── Test 18: attaching components to an object via its port ──
+  // An object aggregates arbitrary nodes: drag from the object's input port
+  // onto a component to attach it. Verify two components attach and the
+  // object draws a teal attachment noodle to each.
+  await addViaMenu("Object");
+  await addViaMenu("File");
+  await addViaMenu("File");
+
+  function cardsOfType(type: string): HTMLElement[] {
+    // The type badge is the span carrying text-transform: uppercase; its
+    // textContent is the raw type (the uppercase is applied by CSS only).
+    return nodeCards().filter(card =>
+      Array.from(card.querySelectorAll("span")).some(
+        span => span.style.textTransform === "uppercase" && (span.textContent ?? "").trim() === type,
+      ),
+    );
+  }
+  const inputPortOf = (card: HTMLElement): HTMLElement => {
+    const port = Array.from(card.querySelectorAll("div")).find(div => div.style.opacity === "0.5") as HTMLElement | undefined;
+    if (port === undefined) {
+      throw new Error("no input port on card");
+    }
+    return port;
+  };
+  async function attach(source: HTMLElement, target: HTMLElement): Promise<void> {
+    const sp = inputPortOf(source);
+    const tp = inputPortOf(target);
+    const sb = sp.getBoundingClientRect();
+    const tb = tp.getBoundingClientRect();
+    fire(sp, "pointerdown", sb.left + 5, sb.top + 5, 1);
+    await nextFrame();
+    fire(sp, "pointermove", tb.left + 5, tb.top + 5, 1);
+    await nextFrame();
+    fire(tp, "pointerup", tb.left + 5, tb.top + 5, 1);
+    await nextFrame();
+  }
+
+  const objectCards18 = cardsOfType("object");
+  const looseCards18 = nodeCards().filter(card => card.querySelector("[title='Drag to group']") === null).slice(-2);
+  if (objectCards18.length < 1 || looseCards18.length < 2) {
+    throw new Error(`expected an object and two files (test 18), got ${objectCards18.length} objects, ${looseCards18.length} loose cards`);
+  }
+  const objectCard18 = objectCards18[objectCards18.length - 1];
+  await attach(objectCard18, looseCards18[0]);
+  await attach(objectCard18, looseCards18[1]);
+
+  // Attachment noodles are drawn teal (#22d3ee); grouping noodles are gray
+  // (#333). getAttribute returns the authored value, so match the hex.
+  const tealEdges = Array.from(document.querySelectorAll("path")).filter(
+    path => (path.getAttribute("stroke") ?? "") === "#22d3ee",
+  ).length;
+  pass(
+    "object attaches components via its port",
+    tealEdges === 2,
+    `teal attachment edges=${tealEdges}`,
+  );
+
+  // The object card lists its attached components as chips, each a small
+  // round dot span followed by the component name span.
+  const chipContainer = Array.from(objectCard18.querySelectorAll("div")).find(div => div.style.flexWrap === "wrap");
+  const dotCount = chipContainer === undefined ? 0 : Array.from(chipContainer.querySelectorAll("span")).filter(span => span.style.borderRadius === "50%").length;
+  pass(
+    "object displays attached components",
+    dotCount === 2,
+    `component dots=${dotCount}`,
   );
 
   const pre = document.getElementById("results") as HTMLElement;

@@ -11,6 +11,7 @@ const HINTS = [
   "👁 eye hides a node and its subtree",
   "▾ chevron collapses a parent",
   "Drag from a folder's ● onto a node to group it under the folder",
+  "Drag from an object's ● onto a node to attach it as a component",
   "Double-tap edge label to rename",
   "🧩 Plugins imports custom node types from JSON",
 ];

@@ -32,9 +32,9 @@ const TYPE_ID_PATTERN = /^[\w.:-]{1,64}$/;
 /** Hex colors with or without a leading #, 3–8 digits. */
 const COLOR_PATTERN = /^#?[0-9a-f]{3,8}$/i;
 
-/** Narrow an open NodeType to one of the three built-in types. */
+/** Narrow an open NodeType to one of the four built-in types. */
 function IsBuiltInType(type: NodeType): type is BuiltInNodeType {
-  return type === "file" || type === "folder" || type === "concept";
+  return type === "file" || type === "folder" || type === "concept" || type === "object";
 }
 
 /**
@@ -188,12 +188,13 @@ export function NodeDefaultsFor(type: NodeType, plugins: Plugin[]): { name: stri
   return { name: type, desc: "Describe this node…" };
 }
 
-/** Fixed defaults for the three built-in node types. */
-function NodeDefaultsForBuiltIn(type: "file" | "folder" | "concept"): { name: string; desc: string } {
-  const defaults: Record<"file" | "folder" | "concept", { name: string; desc: string }> = {
+/** Fixed defaults for the four built-in node types. */
+function NodeDefaultsForBuiltIn(type: "file" | "folder" | "concept" | "object"): { name: string; desc: string } {
+  const defaults: Record<"file" | "folder" | "concept" | "object", { name: string; desc: string }> = {
     file: { name: "new_file.js", desc: "Describe what this file does…" },
     folder: { name: "new_folder/", desc: "Describe what this folder contains…" },
     concept: { name: "Untitled concept", desc: "Describe this architectural concept…" },
+    object: { name: "new_object", desc: "Describe this object and its components…" },
   };
   return defaults[type];
 }

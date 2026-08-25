@@ -11,8 +11,15 @@
  * Kinds of boxes that can appear on the canvas. The `(string & {})` term
  * admits plugin-defined custom types while keeping autocomplete for the
  * built-ins.
+ *
+ * A *folder* groups children in the scene hierarchy (it can itself be
+ * nested). An *object* is an aggregate entity — a game object, an interface
+ * screen, anything with several components attached to it — that collects
+ * arbitrary nodes via `componentIds`. Objects have no output port, so they
+ * cannot be nested inside folders; they receive components by reaching out
+ * from their port.
  */
-export type NodeType = "file" | "folder" | "concept" | (string & {});
+export type NodeType = "file" | "folder" | "concept" | "object" | (string & {});
 
 /** One node definition shipped inside a plugin package. */
 export interface PluginNodeDef {
@@ -61,6 +68,13 @@ export interface GraphNode {
   /** Code produced by the agent, if any. */
   agentOutput: string | null;
   agentStatus: AgentStatus;
+  /**
+   * For `object` nodes: the ids of the component nodes attached to this
+   * object (dragged into the object's port). Empty/absent for other types.
+   * Distinct from the scene hierarchy (`parentId`): components stay where
+   * they are; the object merely aggregates them.
+   */
+  componentIds?: string[];
 }
 
 /** A grouping arrow from a folder down to one of its children. */

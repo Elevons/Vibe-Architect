@@ -3,8 +3,9 @@
 A node-graph canvas for designing software architecture. The graph is a
 *hierarchical scene graph*: every node is an object in a tree (via `parentId`)
 that can be shown/hidden and, when it has children, collapsed into a compact
-card. Model files, folders, and concepts as nodes; draw grouping noodles
-from folders down to their children; let an LLM generate code per node (with
+card. Model files, folders, concepts, and objects as nodes; draw grouping
+noodles from folders down to their children, attach components to an object,
+and let an LLM generate code per node (with
 upstream context); ingest a real repository to build the graph automatically;
 and export the whole design as a prompt for another agent.
 
@@ -20,13 +21,14 @@ npm run typecheck  # tsc --noEmit only
 ## Features
 
 - **Node graph canvas** — pan, zoom (wheel, toward cursor), grid, minimap
-- **Three node types** — file, folder, concept; double-click to edit name, spec, type, and parent
+- **Four node types** — file, folder, concept, object; double-click to edit name, spec, type, and parent
 - **Hierarchical scene graph** — any node can be a parent (folders are the natural parents); re-parent from the node editor, cycle-safe
 - **Show/hide** — the eye on each card toggles that node's visibility; hiding a parent hides its whole subtree (each child's own eye flag still applies on top, and re-showing the parent restores the subtree)
 - **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
 - **Move a whole group** — drag a folder’s header bar (its name row) to slide the folder and its entire subtree together, keeping the group’s internal layout; dragging the card body moves just that one node
 - **Hierarchy browser** — a collapsible tree panel on the right (above the minimap) lists the whole scene graph; click a row to select and center the node, fold/unfold branches, or toggle a node's visibility; hidden nodes are dimmed; the “☰ Hierarchy” toolbar button shows/hides the panel
 - **Grouping edges** — the graph is an architecture doc, not an import map: only folders emit noodles (drag from a folder's bottom port onto any node's top port to group it under the folder; edges flow top to bottom). Click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too. Edge endpoints track each card's *measured* size, so noodles stay anchored to their ports when a card grows (edit form, description, agent output)
+- **Object aggregation** — an object is an entity (a game object, an interface screen, anything with many components) that collects arbitrary nodes as components. Drag from an object's top port onto any node to attach it (a teal noodle joins them); attached components stay put and show as chips on the object card, which also collapses to a compact card showing the component count. Objects never nest inside folders — grouping a folder onto an object is a no-op (use the object's port to attach)
 - **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
 - **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parents each file under an auto-created (collapsed) folder node with a grouping noodle from each folder to its children, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction

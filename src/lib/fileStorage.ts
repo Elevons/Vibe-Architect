@@ -93,6 +93,11 @@ function NormalizeNode(raw: unknown, pluginTypes: Set<string>): GraphNode {
     collapsed: node.collapsed === true,
     agentOutput: typeof node.agentOutput === "string" ? node.agentOutput : null,
     agentStatus: IsAgentStatus(node.agentStatus) ? node.agentStatus : "idle",
+    // Object→component attachments persist as componentIds; restore only the
+    // ids that still exist as nodes (checked after every node is normalized).
+    componentIds: Array.isArray(node.componentIds)
+      ? (node.componentIds as unknown[]).filter((id): id is string => typeof id === "string")
+      : undefined,
   };
 }
 
@@ -117,7 +122,9 @@ function FilterGroupingEdges(nodes: GraphNode[], rawEdges: unknown[]): GraphEdge
     if (fromType === undefined || toType === undefined) {
       continue;
     }
-    if (fromType !== "folder" && toType !== "folder") {
+    // Keep grouping edges (a folder endpoint) and object attachments (an
+    // object endpoint). Everything else is dropped on load.
+    if (fromType !== "folder" && toType !== "folder" && fromType !== "object" && toType !== "object") {
       continue;
     }
     edges.push({
@@ -139,7 +146,7 @@ function NormalizeType(raw: unknown, pluginTypes: Set<string>): GraphNode["type"
   if (typeof raw !== "string" || raw === "") {
     return "file";
   }
-  if (raw === "file" || raw === "folder" || raw === "concept") {
+  if (raw === "file" || raw === "folder" || raw === "concept" || raw === "object") {
     return raw;
   }
   if (pluginTypes.has(raw)) {
