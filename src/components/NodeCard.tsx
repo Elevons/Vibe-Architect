@@ -6,7 +6,7 @@ import { ColorsForType } from "../lib/plugins";
 import { BuildNodeMap, DescendantCount, SubtreeIds } from "../lib/sceneGraph";
 import { useDoubleTap } from "../hooks/useDoubleTap";
 import { Btn } from "./Btn";
-import type { GraphNode, NodeType, Plugin } from "../lib/types";
+import type { GraphNode, NodeType, Plugin, PortSide } from "../lib/types";
 
 /**
  * A single box on the canvas. Double-click (or double-tap) enters edit mode
@@ -32,10 +32,10 @@ interface NodeCardProps {
   onGroupDragStart: (event: ReactPointerEvent, id: string) => void;
   onUpdate: (id: string, patch: Partial<GraphNode>) => void;
   onDelete: (id: string) => void;
-  onStartEdge: (id: string, event: ReactPointerEvent) => void;
-  onEndEdge: (id: string) => void;
+  onStartEdge: (id: string, side: PortSide, event: ReactPointerEvent) => void;
+  onEndEdge: (id: string, side: PortSide) => void;
   onStartAttachment: (id: string, event: ReactPointerEvent) => void;
-  onPortEnd: (id: string) => void;
+  onPortEnd: (id: string, side: PortSide) => void;
   onRunAgent: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onSetVisible: (id: string, visible: boolean) => void;
@@ -134,7 +134,7 @@ export function NodeCard(props: NodeCardProps) {
         position: "absolute", left: node.x, top: node.y, width: NODE_W, minHeight: 80,
         background: colors.bg, border: `1.5px solid ${selected ? "#fff" : colors.border}`,
         borderRadius: 8, padding: "10px 12px", cursor: "grab", userSelect: "none",
-        touchAction: "none",
+        touchAction: "none", pointerEvents: "auto",
         boxShadow: selected ? `0 0 0 2px ${colors.border}44, 0 4px 24px #0008` : "0 2px 12px #0004",
         zIndex: selected ? 10 : 1,
       }}
@@ -190,7 +190,7 @@ function renderCollapsedCard(
       style={{
         position: "absolute", left: node.x, top: node.y, width: NODE_W, height: GROUP_CARD_H,
         background: "#15151c", border: `1.5px solid ${selected ? "#fff" : colors.border}88`,
-        borderRadius: 8, padding: "8px 12px", boxSizing: "border-box",
+        borderRadius: 8, padding: "8px 12px", boxSizing: "border-box", pointerEvents: "auto",
         display: "flex", flexDirection: "column", justifyContent: "space-between",
         cursor: "grab", userSelect: "none", touchAction: "none", zIndex: 5,
         boxShadow: selected ? `0 0 0 2px ${colors.border}44, 0 4px 24px #0008` : "0 2px 12px #0004",
@@ -274,50 +274,65 @@ function AgentStatusColor(status: GraphNode["agentStatus"]): string {
 }
 
 /**
- * Ports. Folders emit grouping noodles (output port on the bottom edge) and
- * can nest inside other folders (input port on the top edge). Files and
- * concepts only receive grouping noodles — they have no output port, so
- * file-to-file noodles are impossible by construction. Objects have no
- * output port either; their input port (top edge) is the *source* of an
- * attachment — pressing and dragging it reaches out to grab a component.
- *
- * Every input port commits whatever draft is active on release: an
- * in-progress object attachment (handled upstream) or a folder grouping
- * edge.
+/**
+ * Ports. Non-object cards (folders, files, concepts, custom types) have a
+ * port on every edge — top, bottom, left,and right. Dragging from any port
+ * starts a noodle from that side; dropping on any port commits it, anchoring
+ * the line to that side. Folder-sourced noodles are grouping edges (the
+ * target becomes the folder's child); file/concept-sourced noodles are free-
+ * form note lines that never reparent. Objects keep a single top port —the
+ * source of an attachment — pressing and dragging it reaches out to grab a
+ * component. Every port commits whatever draft is active on release: an
+ * in-progress object attachment (handled upstream) or a noodle fired
+ * from another card..
  */
 function renderPorts(node: GraphNode, colors: { dot: string }, props: NodeCardProps) {
-  const base: CSSProperties = {
-    position: "absolute", left: "50%", transform: "translateX(-50%)",
-    width: 18, height: 18, borderRadius: "50%", background: colors.dot,
-    border: "2px solid #111", cursor: "crosshair", zIndex: 20, touchAction: "none",
-  };
-  // The input port's onPointerUp must NOT stopPropagation: the release has to
-  // bubble up to the window-level pointerup handler, which is the only place a
-  // node drag is ended. (A press on the port bubbles to the card body and
-  // starts a node drag; if we swallowed the release here, the node would stay
-  // glued to the cursor forever.) onPortEnd still commits any in-progress
-  // grouping/attachment edge, and the window handler is a no-op for those
-  // because the drafts are already cleared.
-  const inputPort = (
-    <div
-      style={{ ...base, top: -9, opacity: 0.5 }}
-      onPointerDown={node.type === "object" ? event => { event.stopPropagation(); props.onStartAttachment(node.id, event); } : undefined}
-      onPointerUp={() => props.onPortEnd(node.id)}
-    />
-  );
-  if (node.type !== "folder") {
-    return inputPort;
+  if (node.type === "object") {
+    return renderAttachmentPort(node, colors, props);
   }
+  const sides: PortSide[] = ["top", "bottom", "left", "right"];
   return (
     <>
-      <div
-        style={{ ...base, bottom: -9 }}
-        onPointerDown={event => { event.stopPropagation(); props.onStartEdge(node.id, event); }}
-        title="Drag to group"
-      />
-      {inputPort}
+      {sides.map(side => (
+        <div
+          key={side}
+          style={PortPositionStyle(side, colors.dot)}
+          title={side === "bottom" && node.type === "folder" ? "Drag to group" : "Drag to connect"}
+          onPointerDown={event => { event.stopPropagation(); props.onStartEdge(node.id, side, event); }}
+          onPointerUp={() => props.onPortEnd(node.id, side)}
+        />
+      ))}
     </>
   );
+}
+
+/** The object's single top port: the*source*of an attachment drag. */
+function renderAttachmentPort(node: GraphNode, colors: { dot: string }, props: NodeCardProps) {
+  return (
+    <div
+      style={{ ...PortPositionStyle("top", colors.dot), opacity: 0.5 }}
+      onPointerDown={event => { event.stopPropagation(); props.onStartAttachment(node.id, event); }}
+      onPointerUp={() => props.onPortEnd(node.id, "top")}
+    />
+  );
+}
+
+/** Absolute position of a port circle on one of the four card edges. */
+function PortPositionStyle(side: PortSide, dot: string): CSSProperties {
+  const common: CSSProperties = {
+    position: "absolute", width: 18, height: 18, borderRadius: "50%", background: dot,
+    border: "2px solid #111", cursor: "crosshair", zIndex: 20, touchAction: "none",
+  };
+  if (side === "bottom") {
+    return { ...common, bottom: -9, left: "50%", transform: "translateX(-50%)" };
+  }
+  if (side === "left") {
+    return { ...common, left: -9, top: "50%", transform: "translateY(-50%)" };
+  }
+  if (side === "right") {
+    return { ...common, right: -9, top: "50%", transform: "translateY(-50%)" };
+  }
+  return { ...common, top: -9, left: "50%", transform: "translateX(-50%)", opacity: 0.5 };
 }
 
 /** Double-click/double-tap read-only view of the node. */

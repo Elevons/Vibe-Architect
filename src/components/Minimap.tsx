@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, ReactElement } from "react";
 import { FONT, GROUP_COLORS, MINIMAP_H, MINIMAP_W, NODE_H, NODE_W } from "../lib/constants";
-import { DescendantBounds, PortIn, PortOut, WorldBounds } from "../lib/geometry";
+import { DescendantBounds, EdgeSourcePoint, EdgeTargetPoint, WorldBounds } from "../lib/geometry";
 import { ColorsForType } from "../lib/plugins";
 import { BuildChildrenMap } from "../lib/sceneGraph";
 import type { GraphEdge, GraphNode, NodeSize, Point, Plugin } from "../lib/types";
@@ -155,8 +155,8 @@ function renderEdgeLines(
     if (from === undefined || to === undefined) {
       return null;
     }
-    const start = PortOut(from, nodeSizes[edge.from]);
-    const end = PortIn(to, nodeSizes[edge.to]);
+    const start = EdgeSourcePoint(edge, from, nodeSizes[edge.from]);
+    const end = EdgeTargetPoint(edge, to, nodeSizes[edge.to]);
     const startMini = toMini(start.x, start.y);
     const endMini = toMini(end.x, end.y);
     return (

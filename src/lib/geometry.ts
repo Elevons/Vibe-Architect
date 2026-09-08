@@ -1,5 +1,5 @@
 import { NODE_H, NODE_W } from "./constants";
-import type { Bounds, GraphNode, NodeSize, Point } from "./types";
+import type { Bounds, GraphEdge, GraphNode, NodeSize, Point, PortSide } from "./types";
 
 /**
  * Canvas geometry: port positions, edge curves, coordinate conversion,
@@ -35,14 +35,59 @@ export function PortIn(node: GraphNode, size?: NodeSize): Point {
   return { x: node.x + widthOf(size) / 2, y: node.y };
 }
 
+/** Left port: left edge, vertically centered. */
+export function PortLeft(node: GraphNode, size?: NodeSize): Point {
+  return { x: node.x, y: node.y + heightOf(size) / 2 };
+}
+
+/** Right port: right edge, vertically centered. */
+export function PortRight(node: GraphNode, size?: NodeSize): Point {
+  return { x: node.x + widthOf(size), y: node.y + heightOf(size) / 2 };
+}
+
+/** Port position for a given side; absent side falls back to the top port. */
+export function PortForSide(node: GraphNode, side: PortSide | undefined, size?: NodeSize): Point {
+  if (side === "bottom") {
+    return PortOut(node, size);
+  }
+  if (side === "left") {
+    return PortLeft(node, size);
+  }
+  if (side === "right") {
+    return PortRight(node, size);
+  }
+  return PortIn(node, size);
+}
+
 /**
- * Cubic bezier path between two ports. Edges flow top to bottom, so the
- * control points extend vertically; the distance grows with the vertical
- * span (capped) so long connections curve wider.
+ * Cubic bezier path between two port positions. Control points extend along
+ * the dominant axis of travel, so horizontal connections bow sideways and
+ * vertical ones flow top to bottom (the legacy grouping look).
  */
-export function EdgePathFromPoints(from: Point, to: Point): string {
-  const controlDistance = Math.max(50, Math.min(Math.abs(to.y - from.y) * 0.5, 200));
-  return `M${from.x},${from.y} C${from.x},${from.y + controlDistance} ${to.x},${to.y - controlDistance} ${to.x},${to.y}`;
+export function EdgePathFromPoints(from: Point,to: Point): string {
+  const dX = to.x - from.x;
+  const dY = to.y - from.y;
+  const horizontal = Math.abs(dX) >= Math.abs(dY);
+  const span = horizontal ? Math.abs(dX) : Math.abs(dY);
+  const controlDistance = Math.max(50, Math.min(span * 0.5, 200));
+  const sign = horizontal ? Math.sign(dX) : Math.sign(dY);
+  if (horizontal) {
+    return `M${from.x},${from.y} C${from.x + controlDistance * sign},${from.y} ${to.x - controlDistance * sign},${to.y} ${to.x},${to.y}`;
+  }
+  return `M${from.x},${from.y} C${from.x},${from.y + controlDistance * sign} ${to.x},${to.y - controlDistance * sign} ${to.x},${to.y}`;
+}
+
+/** Port from which an edge leaves:the chosen side,falling back to bottom. */
+export function EdgeSourcePoint(edge: GraphEdge, node: GraphNode, size?: NodeSize): Point {
+  if (edge.fromSide !== undefined) {
+    return PortForSide(node, edge.fromSide, size);
+  }
+  return PortOut(node, size);
+}
+
+/** Port at which an edge arrives:the chosen side,falling back to top. */
+export function EdgeTargetPoint(edge: GraphEdge, node: GraphNode, size?: NodeSize): Point {
+  return PortForSide(node, edge.toSide, size);
 }
 
 /** SVG path for an edge between two nodes, using their ports. */

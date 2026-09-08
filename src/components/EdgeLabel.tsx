@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { FONT } from "../lib/constants";
-import { useDoubleTap } from "../hooks/useDoubleTap";
 import type { GraphEdge, Point } from "../lib/types";
 
 /**
- * Floating label on an edge, rendered inside the world SVG. Double-click
- * (or double-tap) renames it inline; Enter or blur commits, Escape cancels.
+ * Floating label on an edge, rendered inside the world SVG. A wide
+ * invisible hit rect carries all pointer events so edge notes are always
+ * clickable regardless of SVG pointer-event inheritance. Single click/tap
+ * or double-click opens the inline editor; Enter or blur commits, Escape cancels.
  */
 
 interface EdgeLabelProps {
@@ -19,15 +20,15 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(edge.label ?? "");
 
-  // Keep the edit buffer in sync when the label changes externally.
   useEffect(() => {
     setValue(edge.label ?? "");
   }, [edge.label]);
 
-  const fontSize = Math.max(8, 10 / Math.max(zoom, 0.5));
-
-  const beginEdit = () => setEditing(true);
-  const doubleTap = useDoubleTap(beginEdit);
+  const beginEdit = (): void => {
+    if (!editing) {
+      setEditing(true);
+    }
+  };
 
   const commit = (): void => {
     onUpdate(edge.id, value);
@@ -36,7 +37,7 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
 
   if (editing) {
     return (
-      <foreignObject x={pos.x - 90} y={pos.y - 14} width={180} height={28} style={{ overflow: "visible" }}>
+      <foreignObject x={pos.x - 90} y={pos.y - 16} width={180} height={32} style={{ overflow: "visible" }}>
         <input
           autoFocus
           value={value}
@@ -60,20 +61,50 @@ export function EdgeLabel({ edge, pos, onUpdate, zoom }: EdgeLabelProps) {
     );
   }
 
+  const hasLabel = edge.label !== "" && edge.label !== null;
+  const size = Math.max(16, 16 / Math.max(zoom, 0.5));
+  const labelColor = hasLabel ? "#818cf8" : "#3a3a46";
+
   return (
-    <text
-      x={pos.x}
-      y={pos.y}
-      textAnchor="middle"
-      fill="#667"
-      fontSize={fontSize}
-      fontFamily={FONT}
-      style={{ cursor: "pointer", pointerEvents: "auto", touchAction: "none" }}
-      onPointerDown={event => { event.stopPropagation(); doubleTap.handlePointerDown(event); }}
-      onPointerUp={doubleTap.handlePointerUp}
+    <g
+      onClick={beginEdit}
       onDoubleClick={beginEdit}
+      onPointerDown={event => event.stopPropagation()}
+      style={{ cursor: "pointer", touchAction: "none" }}
     >
-      {edge.label || "···"}
-    </text>
+      <rect
+        x={pos.x - size / 2}
+        y={pos.y - size / 2}
+        width={size}
+        height={size}
+        fill="transparent"
+        style={{ pointerEvents: "all" }}
+        onPointerDown={event => event.stopPropagation()}
+      />
+      <rect
+        x={pos.x - size / 2 + 2}
+        y={pos.y - size / 2 + 2}
+        width={size - 4}
+        height={size - 4}
+        rx={Math.max(2, (size - 4) * 0.25)}
+        fill={labelColor}
+        stroke="#0b0b12"
+        strokeWidth={1 / Math.max(zoom, 0.5)}
+        style={{ pointerEvents: "none" }}
+      />
+      {hasLabel && (
+        <text
+          x={pos.x + size / 2 + 4}
+          y={pos.y}
+          dominantBaseline="middle"
+          textAnchor="start"
+          fill="#99a"
+          fontSize={Math.max(8, 9 / Math.max(zoom, 0.5))}
+          fontFamily={FONT}
+        >
+          {edge.label}
+        </text>
+      )}
+    </g>
   );
 }

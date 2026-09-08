@@ -196,6 +196,42 @@ async function run(): Promise<void> {
   const countsText = document.querySelector(".va-counts")?.textContent ?? "";
   pass("folder edge via port drag", countsText.includes("1e"), countsText);
 
+  // ── Test 6b: the edge note square is hit-testable and opens the editor ──
+  // Uses the browser's own hit test (elementFromPoint) at the square's center,
+  // so a swallowed click (pointer-events inheritance, an overlapping hit path,
+  // a card on top) fails here instead of only in a real browser.
+  // Move the file far from the folder so the edge midpoint sits over empty canvas.
+  const fileBox6b = secondCard.getBoundingClientRect();
+  fire(secondCard, "pointerdown", fileBox6b.left + 20, fileBox6b.top + 20, 1);
+  await nextFrame();
+  fire(secondCard, "pointermove", fileBox6b.left + 20, fileBox6b.top + 20 + 320, 1);
+  await nextFrame();
+  fire(secondCard, "pointerup", fileBox6b.left + 20, fileBox6b.top + 20 + 320, 1);
+  await nextFrame();
+  const noteHitRect = Array.from(document.querySelectorAll("svg rect")).find(rect => rect.getAttribute("fill") === "transparent") as SVGRectElement | undefined;
+  if (noteHitRect === undefined) {
+    throw new Error("edge note hit rect not found (test 6b)");
+  }
+  const noteBox = noteHitRect.getBoundingClientRect();
+  const noteX = noteBox.left + noteBox.width / 2;
+  const noteY = noteBox.top + noteBox.height / 2;
+  const stack6b = document.elementsFromPoint(noteX, noteY).map(element => element.tagName.toLowerCase());
+  const rectInStack = document.elementsFromPoint(noteX, noteY).includes(noteHitRect);
+  pass("edge note hit rect is in the hit-test stack", rectInStack, `stack=[${stack6b.join(",")}] box=${Math.round(noteBox.left)},${Math.round(noteBox.top)} ${Math.round(noteBox.width)}x${Math.round(noteBox.height)}`);
+  const topmost = document.elementFromPoint(noteX, noteY);
+  const squareIsTopmost = topmost !== null && noteHitRect.parentElement !== null && noteHitRect.parentElement.contains(topmost);
+  pass("edge note square is the topmost element at its center", squareIsTopmost, `topmost=<${topmost?.tagName.toLowerCase() ?? "null"}>`);
+  if (topmost !== null) {
+    topmost.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: noteX, clientY: noteY }));
+  }
+  await nextFrame();
+  const noteInput = document.querySelector("svg foreignObject input");
+  pass("clicking the edge note square opens the editor", noteInput !== null);
+  if (noteInput !== null) {
+    (noteInput as HTMLInputElement).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextFrame();
+  }
+
   // Restore the pre-test-6 state (file1 + loose file2, no folders) so the
   // later tests see the same world: unparent file2, then delete the folder.
   const secondBox = secondCard.getBoundingClientRect();
@@ -663,12 +699,13 @@ async function run(): Promise<void> {
   );
 
   // ── Test 16c: releasing over a node's top port ends the node drag ──
-  // Regression: a press on the input (top) port bubbles to the card body and
-  // starts a node drag. The port's onPointerUp used to stopPropagation, which
-  // kept the release from reaching the window handler that ends the drag — so
-  // the node stayed glued to the cursor and could never be dropped.
+  // Regression: dragging a card and releasing the pointer over a port must
+  // end the drag. The window-level pointerup handler owns every drag's
+  // teardown; a port's own onPointerUp only commits edge/attachment drafts
+  // and must not swallow the release, or the node would stay glued to the
+  // cursor (ports are endpoints,so releases can land on them mid-drag).
   const cards16c = nodeCards();
-  const fileCard16c = cards16c.find(card => card.querySelector("[title='Drag to group']") === null);
+  const fileCard16c = cards16c.find(card => card.querySelector("[title='Drag to group']") === null)
   const inPort16c = fileCard16c !== undefined
     ? Array.from(fileCard16c.querySelectorAll("div")).find(div => div.style.opacity === "0.5")
     : undefined;
@@ -677,32 +714,36 @@ async function run(): Promise<void> {
   }
   const worldPos16c = (): { x: number; y: number } => ({ x: parseFloat(fileCard16c.style.left), y: parseFloat(fileCard16c.style.top) });
   const ib16c = inPort16c.getBoundingClientRect();
-  const downX = ib16c.left + 5, downY = ib16c.top + 5;
+  const cb16c = fileCard16c.getBoundingClientRect();
+  const downX = cb16c.left + cb16c.width / 2;
+  const downY = cb16c.top + cb16c.height / 2;
   const posBefore = worldPos16c();
-  // Press the top port → starts a node drag; move → the node follows.
-  fire(inPort16c, "pointerdown", downX, downY, 1);
+  // Press the card body → starts a node drag; move → the node follows.
+  fire(fileCard16c, "pointerdown", downX, downY, 1);
   await nextFrame();
-  fire(inPort16c, "pointermove", downX + 60, downY + 40, 1);
+  fire(fileCard16c, "pointermove", downX + 60, downY +  40, 1);
   await nextFrame();
   const posWhileDragging = worldPos16c();
-  // Release over the port → the drag must end.
-  fire(inPort16c, "pointerup", downX + 60, downY + 40, 1);
+  // Release over the top port →the drag must end either way.
+  fire(fileCard16c, "pointermove", ib16c.left + 5, ib16c.top +  5, 1);
+  await nextFrame();
+  fire(inPort16c, "pointerup", ib16c.left +  5, ib16c.top +  5, 1);
   await nextFrame();
   const posAfterRelease = worldPos16c();
-  // Move again: if the drag truly ended, the node must NOT follow the cursor.
-  fire(canvas, "pointermove", downX + 140, downY + 120, 1);
+  // Move again: just the drag truly ended,the node must NOT follow the cursor.
+  fire(canvas, "pointermove", downX +140, downY +120, 1);
   await nextFrame();
   const posAfterMove = worldPos16c();
   // The node moved from its original spot while dragging (it followed the cursor).
   const nodeFollowedWhileDragging =
     Math.abs(posWhileDragging.x - posBefore.x) > 0.5 || Math.abs(posWhileDragging.y - posBefore.y) > 0.5;
-  // After release, moving the cursor must not move the node (drag is over).
+  // After release, moving the cursor must not move the node (drag is over.
   const nodeStoppedOnRelease =
     Math.abs(posAfterRelease.x - posAfterMove.x) < 0.5 && Math.abs(posAfterRelease.y - posAfterMove.y) < 0.5;
   pass(
-    "releasing over a node's top port ends the node drag",
-    nodeFollowedWhileDragging && nodeStoppedOnRelease,
-    `before=(${posBefore.x.toFixed(1)},${posBefore.y.toFixed(1)}) whileDrag=(${posWhileDragging.x.toFixed(1)},${posWhileDragging.y.toFixed(1)}) afterRelease=(${posAfterRelease.x.toFixed(1)},${posAfterRelease.y.toFixed(1)}) afterMove=(${posAfterMove.x.toFixed(1)},${posAfterMove.y.toFixed(1)})`,
+      "releasing over a node's top port ends the node drag",
+      nodeFollowedWhileDragging && nodeStoppedOnRelease,
+      `before=(${posBefore.x.toFixed(1)},${posBefore.y.toFixed(1)}) whileDrag=(${posWhileDragging.x.toFixed(1)},${posWhileDragging.y.toFixed(1)}) afterRelease=(${posAfterRelease.x.toFixed(1)},${posAfterRelease.y.toFixed(1)}) afterMove=(${posAfterMove.x.toFixed(1)},${posAfterMove.y.toFixed(1)})`,
   );
 
   // ── Test 17: dragging the grouping-box handle moves the whole subtree ──

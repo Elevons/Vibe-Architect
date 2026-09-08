@@ -2,12 +2,13 @@ import { ParsePluginArray } from "./plugins";
 import type { GraphEdge, GraphNode, GraphSnapshot } from "./types";
 
 /**
- * File-based persistence: saving downloads a pretty-printed JSON file,
- * loading reads one from a file picker.
+ * File-based persistence: save/download local JSON files, plus optional
+ * server-side storage via a REST API (server.js or Vite proxy).
  *
  * The browser cannot list or delete files on disk, so there is no
- * list/delete API here — saved graphs are ordinary .json files the user
- * manages like any other file.
+ * list/delete API here for local files — saved graphs are ordinary .json
+ * files the user manages like any other file. Server storage provides
+ * full CRUD (list/save/load/delete).
  */
 
 /** Characters that are illegal in file names on common OSes. */
@@ -33,6 +34,49 @@ export async function LoadGraphFromFile(file: File): Promise<GraphSnapshot | nul
   } catch {
     return null;
   }
+}
+
+// ── Server-side storage ────────────────────────────────────────────────
+
+const API_BASE = "/api/graphs";
+
+export interface ServerGraphEntry {
+  name: string;
+  mtime: string | null;
+}
+
+/** List all graphs saved on the server. */
+export async function ListGraphsFromServer(): Promise<ServerGraphEntry[]> {
+  const res = await fetch(API_BASE);
+  if (!res.ok) throw new Error(`Server error: ${res.status}`);
+  return res.json();
+}
+
+/** Save the snapshot to the server under the given name. */
+export async function SaveGraphToServer(name: string, data: GraphSnapshot): Promise<void> {
+  const res = await fetch(API_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim(), data }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `${res.status}` }));
+    throw new Error(err.error);
+  }
+}
+
+/** Load a named graph from the server. */
+export async function LoadGraphFromServer(name: string): Promise<GraphSnapshot | null> {
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(name)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Server error: ${res.status}`);
+  return ParseGraphSnapshot(await res.text());
+}
+
+/** Delete a named graph from the server. */
+export async function DeleteGraphFromServer(name: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(name)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Server error: ${res.status}`);
 }
 
 /**
@@ -64,7 +108,7 @@ export function ParseGraphSnapshot(text: string): GraphSnapshot | null {
   const nodes = [...candidate.nodes.map(raw => NormalizeNode(raw, pluginTypes)), ...LegacyGroupFolders(candidate.groups)];
   const snapshot: GraphSnapshot = {
     nodes,
-    edges: FilterGroupingEdges(nodes, candidate.edges),
+    edges: NormalizeEdges(nodes, candidate.edges),
     mode: candidate.mode === "serial" ? "serial" : "parallel",
   };
   if (plugins.length > 0) {
@@ -102,36 +146,23 @@ function NormalizeNode(raw: unknown, pluginTypes: Set<string>): GraphNode {
 }
 
 /**
- * Keep only grouping edges: both endpoints resolve and at least one
- * endpoint is a folder. File-to-file dependency edges from older files are
- * documentation, not architecture, and are dropped on load.
+ * Keep valid edges whose both endpoints resolve to existing nodes.
  */
-function FilterGroupingEdges(nodes: GraphNode[], rawEdges: unknown[]): GraphEdge[] {
-  const typeById = new Map(nodes.map(node => [node.id, node.type]));
+function NormalizeEdges(nodes: GraphNode[], rawEdges: unknown[]): GraphEdge[] {
+  const idSet = new Set(nodes.map(n => n.id));
   const edges: GraphEdge[] = [];
   for (const raw of rawEdges) {
-    const edge = raw as Partial<GraphEdge>;
-    if (typeof edge.id !== "string" || edge.id === "") {
-      continue;
-    }
-    if (typeof edge.from !== "string" || typeof edge.to !== "string") {
-      continue;
-    }
-    const fromType = typeById.get(edge.from);
-    const toType = typeById.get(edge.to);
-    if (fromType === undefined || toType === undefined) {
-      continue;
-    }
-    // Keep grouping edges (a folder endpoint) and object attachments (an
-    // object endpoint). Everything else is dropped on load.
-    if (fromType !== "folder" && toType !== "folder" && fromType !== "object" && toType !== "object") {
-      continue;
-    }
+    const e = raw as Partial<GraphEdge>;
+    if (typeof e.id !== "string" || e.id === "") continue;
+    if (typeof e.from !== "string" || typeof e.to !== "string") continue;
+    if (!idSet.has(e.from) || !idSet.has(e.to)) continue;
     edges.push({
-      id: edge.id,
-      from: edge.from,
-      to: edge.to,
-      label: typeof edge.label === "string" ? edge.label : "",
+      id: e.id,
+      from: e.from,
+      to: e.to,
+      label: typeof e.label === "string" ? e.label : "",
+      fromSide: typeof e.fromSide === "string" ? e.fromSide : undefined,
+      toSide: typeof e.toSide === "string" ? e.toSide : undefined,
     });
   }
   return edges;

@@ -17,6 +17,12 @@ interface UpstreamContext {
   output: string | null;
 }
 
+/** One related-file note in the "related to" listing. */
+interface RelatedNote {
+  name: string;
+  label: string;
+}
+
 /** Collect the incoming edges' source nodes as prompt context. */
 function CollectUpstreamContext(node: GraphNode, nodes: GraphNode[], edges: GraphEdge[]): UpstreamContext[] {
   const nodeMap = new Map(nodes.map(entry => [entry.id, entry]));
@@ -48,13 +54,46 @@ function RenderUpstreamSection(entry: UpstreamContext): string {
   return section;
 }
 
+/**
+ * Collect note-line edges feeding this node:non-folder sources connected by a
+ * line whose label is the note. Folders' grouping edges are excluded — their
+ * relationship is hierarchy, not a peer reference.
+ */
+function CollectRelatedNotes(node: GraphNode, nodes: GraphNode[], edges: GraphEdge[]): RelatedNote[] {
+  const nodeMap = new Map(nodes.map(entry => [entry.id, entry]));
+  const related: RelatedNote[] = [];
+  for (const edge of edges) {
+    if (edge.to !== node.id) {
+      continue;
+    }
+    const source = nodeMap.get(edge.from);
+    if (source === undefined) {
+      continue;
+    }
+    if (source.type === "folder") {
+      continue;
+    }
+    related.push({ name: source.name, label: edge.label || "" });
+  }
+  return related;
+}
+
+/** One "A related to B: note" listing line per related file, or empty. */
+function RenderRelatedSection(node: GraphNode, related: RelatedNote[]): string {
+  if (related.length === 0) {
+    return "";
+  }
+  const lines = related.map(entry => `- ${entry.name} related to ${node.name}: ${entry.label || "(no note)"}`);
+  return "\n\n## Related modules:\n" + lines.join("\n");
+}
+
 /** Build the full code-generation prompt for a node. */
-function BuildAgentPrompt(node: GraphNode, upstream: UpstreamContext[]): string {
+function BuildAgentPrompt(node: GraphNode, upstream: UpstreamContext[], related: RelatedNote[]): string {
   let context = "";
   if (upstream.length > 0) {
     context = "\n\n## Context from upstream modules:\n" + upstream.map(RenderUpstreamSection).join("\n\n");
   }
-  return `You are a senior developer. Generate the code for "${node.name}" (type: ${node.type}).\n\n## Spec:\n${node.desc}${context}\n\nGenerate ONLY the code. No explanation, no markdown fences.`;
+  return `You are a senior developer. Generate the code for "${node.name}" (type: ${node.type}).\n\n## Spec:\n${node.desc}${context}${RenderRelatedSection(node, related)}\n\nGenerate ONLY the code. No explanation, no markdown fences.`;
 }
 
 /**
@@ -63,7 +102,8 @@ function BuildAgentPrompt(node: GraphNode, upstream: UpstreamContext[]): string 
  */
 export async function RunAgent(node: GraphNode, nodes: GraphNode[], edges: GraphEdge[]): Promise<string> {
   const upstream = CollectUpstreamContext(node, nodes, edges);
-  const prompt = BuildAgentPrompt(node, upstream);
+  const related = CollectRelatedNotes(node, nodes, edges);
+  const prompt = BuildAgentPrompt(node, upstream, related);
   const text = await RequestAnthropicText(prompt, 1000);
   return text || "(no output)";
 }

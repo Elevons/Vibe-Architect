@@ -32,6 +32,8 @@ export function BuildArchitecturePrompt(
   lines.push("## File Layout\n");
   lines.push("Create each folder (directory) below if it does not already exist, then create each file at its listed path if it does not already exist.\n");
   RenderFileLayout(nodes, nodeById, lines);
+  lines.push("");
+  RenderRelationships(edges, nodeById, lines);
 
   // Objects aggregate components (dragged into an object's port). They are not
   // files, so they don't belong in the placement list; describe the attachment
@@ -124,6 +126,41 @@ function RenderFileLayout(
     }
     lines.push("");
   }
+}
+
+/**
+ * Cross-node relationships (edges from file/concept/custom nodes — not
+ * folder grouping edges, which are already captured by the structure tree).
+ * Each non-grouping edge is rendered as "nodeA → nodeB" with the edge label
+ * appended if one was set.
+ */
+function RenderRelationships(
+  edges: GraphEdge[],
+  nodeById: Map<string, GraphNode>,
+  lines: string[],
+): void {
+  // Only edges whose source is NOT a folder (grouping) and is NOT an object
+  // (attachment — those are covered by ## Objects).
+  const relEdges = edges.filter(e => {
+    const fromNode = nodeById.get(e.from);
+    if (fromNode === undefined) return false;
+    return fromNode.type !== "folder" && fromNode.type !== "object";
+  });
+
+  if (relEdges.length === 0) return;
+
+  lines.push("## Relationships\n");
+  for (const e of relEdges) {
+    const fromNode = nodeById.get(e.from);
+    const toNode = nodeById.get(e.to);
+    if (fromNode === undefined || toNode === undefined) continue;
+
+    const fromPath = NodePath(fromNode, nodeById);
+    const toPath = NodePath(toNode, nodeById);
+    const label = e.label !== undefined && e.label !== "" ? ` — ${e.label}` : "";
+    lines.push(`- ${fromPath} → ${toPath}${label}`);
+  }
+  lines.push("");
 }
 
 /**

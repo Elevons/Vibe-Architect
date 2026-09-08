@@ -77,12 +77,23 @@ export interface GraphNode {
   componentIds?: string[];
 }
 
-/** A grouping arrow from a folder down to one of its children. */
+/** Which edge of a card a port sits on. */
+export type PortSide = "top" | "bottom" | "left" | "right";
+
+/**
+ * A connection arrow between two nodes. Folder-sourced edges are grouping
+ * noodles (the target becomes the folder's child in the scene hierarchy);
+ * file/concept-sourced edges are free-form note lines that never reparent.
+ */
 export interface GraphEdge {
   id: string;
   from: string;
   to: string;
   label: string;
+  /** Port side the noodle left from (absent means bottom, the legacy default). */
+  fromSide?: PortSide;
+  /** Port side the noodle arrived at (absent means top, the legacy default). */
+  toSide?: PortSide;
 }
 
 /** Axis-aligned rectangle in world coordinates. */

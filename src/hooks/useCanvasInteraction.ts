@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { MAX_ZOOM, MIN_ZOOM } from "../lib/constants";
-import type { GraphEdge, GraphNode, Point } from "../lib/types";
+import type { GraphEdge, GraphNode, Point, PortSide } from "../lib/types";
 
 /**
  * Canvas pointer interaction: node dragging, canvas panning, pinch-to-zoom,
@@ -17,6 +17,7 @@ import type { GraphEdge, GraphNode, Point } from "../lib/types";
 
 interface EdgeDraft {
   from: string;
+  fromSide: PortSide;
   to: string | null;
 }
 
@@ -37,7 +38,7 @@ interface CanvasInteractionOptions {
   setSelected: (id: string | null) => void;
   updateNode: (id: string, patch: Partial<GraphNode>) => void;
   moveSubtree: (rootId: string, x: number, y: number) => void;
-  addEdge: (from: string, to: string) => void;
+  addEdge: (from: string,to: string,fromSide: PortSide,toSide: PortSide) => void;
   addAttachment: (from: string, to: string) => void;
 }
 
@@ -49,8 +50,8 @@ export interface CanvasInteraction {
   attachDraft: AttachmentDraft | null;
   canvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void;
-  handleStartEdge: (fromId: string, event: ReactPointerEvent) => void;
-  handleEndEdge: (toId: string) => void;
+  handleStartEdge: (fromId: string,fromSide: PortSide,event: ReactPointerEvent) => void;
+  handleEndEdge: (toId: string,toSide: PortSide) => void;
   handleStartAttachment: (objectId: string, event: ReactPointerEvent) => void;
   handleEndAttachment: (toId: string) => void;
 }
@@ -262,20 +263,20 @@ export function useCanvasInteraction(options: CanvasInteractionOptions): CanvasI
   };
 
   // ── Press on an output port: begin an edge draft ──
-  const handleStartEdge = (fromId: string, event: ReactPointerEvent): void => {
-    setEdgeDraft({ from: fromId, to: null });
+  const handleStartEdge = (fromId: string, fromSide: PortSide, event: ReactPointerEvent): void => {
+    setEdgeDraft({ from: fromId, fromSide, to: null });
     edgePointerId.current = event.pointerId;
     setPointerPos({ x: event.clientX, y: event.clientY });
   };
 
   // ── Release over an input port: commit the edge draft ──
-  const handleEndEdge = (toId: string): void => {
+  const handleEndEdge = (toId: string, toSide: PortSide): void => {
     if (
       edgeDraft !== null
       && edgeDraft.from !== toId
       && !edges.some(edge => edge.from === edgeDraft.from && edge.to === toId)
     ) {
-      addEdge(edgeDraft.from, toId);
+      addEdge(edgeDraft.from, toId, edgeDraft.fromSide, toSide);
     }
     setEdgeDraft(null);
     edgePointerId.current = null;

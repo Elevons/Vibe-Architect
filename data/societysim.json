@@ -1,0 +1,736 @@
+{
+  "nodes": [
+    {
+      "id": "n202",
+      "x": -635.823518374437,
+      "y": -756.6661429435185,
+      "name": "societySim",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": null,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n212",
+      "x": -1339.6971561188184,
+      "y": -130.07526924609206,
+      "name": "goap",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n202",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n215",
+      "x": -263.28956860893925,
+      "y": -76.25378665384727,
+      "name": "generation",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n202",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n218",
+      "x": -180.9245673090901,
+      "y": 149.35604733316399,
+      "name": "model",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n215",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n221",
+      "x": 1224.2738204500613,
+      "y": -320.3007899503664,
+      "name": "src",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": null,
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n224",
+      "x": 1047.5018910333947,
+      "y": -146.08464948782182,
+      "name": "behaviors",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n221",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n228",
+      "x": -1699.463935180003,
+      "y": -132.95428875162008,
+      "name": "sim",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n202",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n232",
+      "x": 1476.340679446031,
+      "y": -741.738553121914,
+      "name": "game",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n221",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n237",
+      "x": 2058.5385307880115,
+      "y": -2.9264990369781003,
+      "name": "webUX",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n252",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n240",
+      "x": 1870.2198037019882,
+      "y": 146.38349505353614,
+      "name": "generationUX",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n237",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n243",
+      "x": 2236.8917576701533,
+      "y": 141.0977733513585,
+      "name": "runtimeUX",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n237",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n252",
+      "x": 2055.9487646802127,
+      "y": -354.6863525800588,
+      "name": "public",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n232",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n257",
+      "x": 741.6485934617278,
+      "y": 47.507998903859544,
+      "name": "pathfinding",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n224",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n260",
+      "x": -989.7293581349662,
+      "y": -126.04204708360945,
+      "name": "data",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n202",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n267",
+      "x": 2256.6004234803104,
+      "y": -166.39439853224025,
+      "name": "index.html",
+      "path": "",
+      "desc": "Describe what this file does…",
+      "type": "file",
+      "parentId": "n252",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n201",
+      "x": -586.0010986177632,
+      "y": 166.8645035314692,
+      "name": "generationStage",
+      "path": "",
+      "desc": "This takes in inputs and calls the model to generate a stage, then saves the results.\n\nVariables:\nStage number,\nPrompt,\nOutput",
+      "type": "file",
+      "parentId": "n215",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n204",
+      "x": -173.82105842354133,
+      "y": 337.18831790972206,
+      "name": "callmodel",
+      "path": "",
+      "desc": "Describe what this file does…",
+      "type": "file",
+      "parentId": "n218",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n211",
+      "x": 308.06932452903914,
+      "y": 194.44239433127933,
+      "name": "prompts",
+      "path": "",
+      "desc": "Describe what this folder contains…",
+      "type": "folder",
+      "parentId": "n215",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n214",
+      "x": 1869.0251371019624,
+      "y": 331.7850898348182,
+      "name": "generationOrchestrator",
+      "path": "",
+      "desc": "Describe what this file does…",
+      "type": "file",
+      "parentId": "n240",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n223",
+      "x": -986.1138047990803,
+      "y": 50.01044114945506,
+      "name": "writeData",
+      "path": "",
+      "desc": "Takes in data and exports it to JSON database.",
+      "type": "file",
+      "parentId": "n260",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    },
+    {
+      "id": "n234",
+      "x": 246.98728630941508,
+      "y": -329.18015527397506,
+      "name": "server.js",
+      "desc": "Describe what this file does…",
+      "path": "",
+      "type": "file",
+      "parentId": "n202",
+      "visible": true,
+      "collapsed": false,
+      "agentOutput": null,
+      "agentStatus": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e214",
+      "from": "n202",
+      "to": "n212",
+      "label": ""
+    },
+    {
+      "id": "e217",
+      "from": "n202",
+      "to": "n215",
+      "label": ""
+    },
+    {
+      "id": "e226",
+      "from": "n221",
+      "to": "n224",
+      "label": ""
+    },
+    {
+      "id": "e230",
+      "from": "n202",
+      "to": "n228",
+      "label": ""
+    },
+    {
+      "id": "e242",
+      "from": "n237",
+      "to": "n240",
+      "label": ""
+    },
+    {
+      "id": "e245",
+      "from": "n237",
+      "to": "n243",
+      "label": ""
+    },
+    {
+      "id": "e256",
+      "from": "n252",
+      "to": "n237",
+      "label": ""
+    },
+    {
+      "id": "e259",
+      "from": "n224",
+      "to": "n257",
+      "label": ""
+    },
+    {
+      "id": "e263",
+      "from": "n202",
+      "to": "n260",
+      "label": ""
+    },
+    {
+      "id": "e269",
+      "from": "n252",
+      "to": "n267",
+      "label": ""
+    },
+    {
+      "id": "e203",
+      "from": "n215",
+      "to": "n201",
+      "label": ""
+    },
+    {
+      "id": "e206",
+      "from": "n218",
+      "to": "n204",
+      "label": ""
+    },
+    {
+      "id": "e216",
+      "from": "n240",
+      "to": "n214",
+      "label": ""
+    },
+    {
+      "id": "e220",
+      "from": "n215",
+      "to": "n218",
+      "label": ""
+    },
+    {
+      "id": "e222",
+      "from": "n215",
+      "to": "n211",
+      "label": ""
+    },
+    {
+      "id": "e225",
+      "from": "n260",
+      "to": "n223",
+      "label": ""
+    },
+    {
+      "id": "e229",
+      "from": "n232",
+      "to": "n221",
+      "label": ""
+    },
+    {
+      "id": "e233",
+      "from": "n232",
+      "to": "n252",
+      "label": "",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "e236",
+      "from": "n202",
+      "to": "n234",
+      "label": "",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "mode": "parallel",
+  "plugins": [
+    {
+      "name": "blender2babylon-kit",
+      "nodes": [
+        {
+          "type": "b2b:export",
+          "label": "Export",
+          "desc": "Validates the scene and writes level.glb + level.scene.json + sidecar media folders.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:glb",
+          "label": "level.glb",
+          "desc": "glTF artifact: meshes, hierarchy, standard materials, lights, cameras, animation clips, GUIDs in metadata.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:manifest",
+          "label": "level.scene.json",
+          "desc": "Manifest artifact: ECS components, scene block, per-entity light/camera/animation, materials[], detailMaps[]. glTF can't express these.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:validator",
+          "label": "Validator",
+          "desc": "Pre-export warnings: missing scripts, bad refs, physics traps (mesh triggers, MESH collider + dynamic body, AREA lights).",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:livelink",
+          "label": "Live Link",
+          "desc": "Ctrl+S in Blender re-exports automatically; the dev server watches public/levels/ and reloads the browser.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:prefabs",
+          "label": "Prefabs",
+          "desc": "Linked library .blend files with per-instance library overrides; export from the level file.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:guid",
+          "label": "GUID Matching",
+          "desc": "Stable GUID stamped into each Blender object; the runtime matches manifest entities to glTF nodes by GUID, so renames don't break links. Needs ExtrasAsMetadata.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:control-panel",
+          "label": "Project Control Panel",
+          "desc": "Desktop hub for editors and docs: Start All / Vite, export a level from Blender.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:bjs-mcp",
+          "label": "bjs-mcp",
+          "desc": "MCP server for LLM-assisted behavior authoring against the b2bkit runtime.",
+          "category": "Pipeline",
+          "color": "#22d3ee"
+        },
+        {
+          "type": "b2b:tag",
+          "label": "TAG",
+          "desc": "Text label for queries and Event Message filters → entity.tag, attachment row.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:script",
+          "label": "SCRIPT",
+          "desc": "Attaches a TypeScript behavior + tunable @exposed fields → Behavior instance on entity.behaviors.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:animator",
+          "label": "ANIMATOR",
+          "desc": "Action-clip state machine (node graph on the armature; clip names = Action names) → built-in AnimatorController.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:collider",
+          "label": "COLLIDER",
+          "desc": "Collision shape (box, sphere, convex, mesh); optional Event Messages. Part of one PhysicsBody per entity (compound if several). Use box/sphere/convex for triggers.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:rigidbody",
+          "label": "RIGIDBODY",
+          "desc": "Mass, friction, dynamics (static / dynamic / animated). Same body as colliders on that object. MESH collider + DYNAMIC is not supported.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:constraint",
+          "label": "CONSTRAINT",
+          "desc": "Physics joint to another body (hinge, slider, 6DoF) → Havok constraint on level.constraints.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:camera",
+          "label": "CAMERA",
+          "desc": "Replaces the exported camera with orbit / follow / geospatial controls → typed Babylon camera; may become level.activeCamera.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:audio",
+          "label": "AUDIO",
+          "desc": "Sound file, 2D or 3D spatial → StaticSound on entity.sounds.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:gui",
+          "label": "GUI",
+          "desc": "2D HUD or mesh-projected UI from GUI Editor JSON → AdvancedDynamicTexture.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:gui3d",
+          "label": "GUI3D",
+          "desc": "3D GUI controls (buttons, holo, mesh, stack/sphere/cylinder/plane/scatter panels) → Control3D; click fires OnMessage.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:particle",
+          "label": "PARTICLE",
+          "desc": "Particle or Node Particle system JSON → IParticleSystem on entity.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:msdf-text",
+          "label": "MSDF_TEXT",
+          "desc": "Crisp 3D labels (bmfont JSON + atlas PNG) → TextRenderer; draws after the main pass.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:rendering-group",
+          "label": "RENDERING_GROUP",
+          "desc": "Babylon draw-order group (0–3); optional propagation to owned meshes / child entities.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:mesh-shadows",
+          "label": "MESH_SHADOWS",
+          "desc": "Cast/receive shadow modes; overrides ray visibility when enabled → mesh.receiveShadows + ShadowGenerator casters.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:layer-mask",
+          "label": "LAYER_MASK",
+          "desc": "Babylon visibility bitmask for multi-camera / light filtering → mesh.layerMask on owned meshes.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:collision-layer",
+          "label": "COLLISION_LAYER",
+          "desc": "Named Havok collision layer; optional propagation → PhysicsShape.filterMembershipMask / filterCollideMask.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:reflection-probe",
+          "label": "REFLECTION_PROBE",
+          "desc": "Local cubemap for nearby geometry inside an influence volume (not a sky replacement) → ReflectionProbe on entity.",
+          "category": "Components",
+          "color": "#4ade80"
+        },
+        {
+          "type": "b2b:entity",
+          "label": "Entity",
+          "desc": "One exported object + its runtime attachments. For skinned meshes, put GUID, animation, and scripts on the armature.",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:behavior",
+          "label": "Behavior",
+          "desc": "Your TypeScript class from a SCRIPT component: subclass Behavior, @exposed fields, OnUpdate/OnStart hooks (PascalCase or they never run).",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:attachment",
+          "label": "Attachment",
+          "desc": "One applied component row (data + runtime object). Add/remove components at runtime via ComponentHost.",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:level",
+          "label": "Level",
+          "desc": "Container for all entities, scene subsystems, and the frame loop.",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:level-loader",
+          "label": "LevelLoader",
+          "desc": "Loads the .glb, reads the manifest, matches entities by GUID, attaches components, runs FinalizeLevel subsystems (constraints, GUI3D, reflection probes).",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:gameclock",
+          "label": "GameClock",
+          "desc": "Unified time authority: timeScale (slow-mo / pause), scaled + unscaled deltas.",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:onmessage",
+          "label": "OnMessage",
+          "desc": "String messages from Event Messages, GUI, or SendMessage — the kit's event channel.",
+          "category": "Runtime",
+          "color": "#818cf8"
+        },
+        {
+          "type": "b2b:environment",
+          "label": "Environment / Skybox",
+          "desc": "IBL from World texture or default studio HDR; clear/ambient color.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:fog",
+          "label": "Fog",
+          "desc": "Linear, exponential, or exponential² scene fog.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:atmosphere",
+          "label": "Atmosphere",
+          "desc": "Physical sky; replaces the environment skybox when enabled.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:postprocess",
+          "label": "Post-processing",
+          "desc": "Bloom, DOF, SSAO, tone mapping, LUTs (cubeLutTexture), effects chain.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:input-actions",
+          "label": "Input Actions",
+          "desc": "Maps, actions, bindings + scene default map (Unity-style input).",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:collision-layers",
+          "label": "Collision Layers",
+          "desc": "Named layer list + N×N collision matrix (Unity-style) for Havok.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:clustered-lights",
+          "label": "Light Budget / Clustering",
+          "desc": "Forward vs clustered punctual lights; light budget per pixel.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:shadows",
+          "label": "Shadows",
+          "desc": "Directional + mesh shadow generators; freeze shadows bakes maps once for static worlds.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:large-world",
+          "label": "Large World Rendering",
+          "desc": "Floating-origin engine + Havok region radius for big maps.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:nme",
+          "label": "NME Materials",
+          "desc": "Node Material Encoding: link NME JSON per Blender material, scan/extract embedded textures, texture/input/gradient overrides. Matched by material name.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        },
+        {
+          "type": "b2b:detail-maps",
+          "label": "Detail Maps",
+          "desc": "Packed or separate albedo/normal detail maps per material → DetailMapConfiguration on glTF.",
+          "category": "Scene & Rendering",
+          "color": "#fb923c"
+        }
+      ],
+      "version": "1.0.0",
+      "description": "Concept nodes for the Blender2BabylonKit (b2bkit) level pipeline: Blender add-on → level.glb + level.scene.json → Babylon.js runtime. Drop these instead of explaining the kit's tooling in node descriptions."
+    }
+  ]
+}

@@ -5,13 +5,13 @@ import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
 import { RunAgent } from "../lib/agent";
 import { FONT, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
-import { DescendantBounds, AttachmentEdgePath, EdgePathFromPoints, PortIn, PortOut, VisibleBounds } from "../lib/geometry";
+import { DescendantBounds, AttachmentEdgePath, EdgePathFromPoints, EdgeSourcePoint, EdgeTargetPoint, PortForSide, PortIn, VisibleBounds } from "../lib/geometry";
 import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
 import { DagLayout } from "../lib/layout";
 import { NodeDefaultsFor } from "../lib/plugins";
 import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
-import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, Plugin, RunMode } from "../lib/types";
+import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, Plugin, PortSide, RunMode } from "../lib/types";
 import { EdgeLabel } from "./EdgeLabel";
 import { HierarchyPanel } from "./HierarchyPanel";
 import { Minimap } from "./Minimap";
@@ -66,24 +66,32 @@ export function VibeArchitect() {
     setNodes(prev => prev.map(node => (node.id === id ? { ...node, ...patch } : node)));
   };
 
-  // Edges are grouping: the source is always a folder (the only node type
-  // with an output port), and the noodle pulls the target in as a child in
-  // the hierarchy (cycle-safe). File-to-file noodles don't exist in this
-  // model — the graph is an architecture doc, not an import map.
-  const addEdge = (from: string, to: string): void => {
+  // Edges fall into two kinds. A folder-sourced edge is a grouping noodle:
+  // the target becomes the folder's child in the scene hierarchy (cycle-safe).
+  // File/concept/custom-sourced edges are free-form note lines that never
+  // reparent — just a labelled connection between two cards.
+
+  const addEdge = (from: string,to: string,fromSide: PortSide,toSide: PortSide): void => {
     const fromNode = nodes.find(node => node.id === from);
     const toNode = nodes.find(node => node.id === to);
     if (fromNode === undefined || toNode === undefined) {
       return;
     }
-    // Objects are aggregates, not grouping children: a folder's grouping
-    // noodle landing on an object is a no-op. Attach to an object via the
-    // object's own port instead (see addAttachment).
-    if (toNode.type === "object") {
+    if (fromNode.type === "folder") {
+      // Objects are aggregates, not grouping children: a folder's grouping
+      // noodle landing on an object is a no-op. Attach to an object via the
+      // object's own port instead (see addAttachment..
+      if (toNode.type === "object") {
+        return;
+      }
+      setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "", fromSide, toSide }]);
+      setNodes(prev => SetParent(prev, to, from));
       return;
     }
-    setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "" }]);
-    setNodes(prev => SetParent(prev, to, from));
+    if (fromNode.type === "object") {
+      return;
+    }
+    setEdges(prev => [...prev, { id: CreateUniqueId("e"), from, to, label: "", fromSide, toSide }]);
   };
 
   /** Attach `to` as a component of the object `from` (an object→component noodle). */
@@ -131,11 +139,11 @@ export function VibeArchitect() {
    * top port, so objects (which receive attachments) and folders (which
    * receive grouping) share the same drop target.
    */
-  const onPortEnd = (toId: string): void => {
+  const onPortEnd = (toId: string,toSide: PortSide): void => {
     if (attachDraft !== null) {
       handleEndAttachment(toId);
     } else {
-      handleEndEdge(toId);
+      handleEndEdge(toId,toSide);
     }
   };
   useWheelZoom(canvasRef, pan, zoom, setPan, setZoom);
@@ -190,7 +198,26 @@ export function VibeArchitect() {
   };
 
   const deleteEdge = (edgeId: string): void => {
-    setEdges(prev => prev.filter(edge => edge.id !== edgeId));
+    const edge = edges.find(e => e.id === edgeId);
+    setEdges(prev => prev.filter(e => e.id !== edgeId));
+    if (edge === undefined) return;
+
+    const fromNode = nodes.find(n => n.id === edge.from);
+    const toNode = nodes.find(n => n.id === edge.to);
+    if (fromNode === undefined || toNode === undefined) return;
+
+    if (fromNode.type === "folder") {
+      // Undo grouping: unparent the target if it points to this folder.
+      setNodes(prev => prev.map(n =>
+        n.id === edge.to && n.parentId === edge.from ? { ...n, parentId: null } : n));
+    }
+    if (fromNode.type === "object") {
+      // Undo attachment: remove target from object's componentIds.
+      setNodes(prev => prev.map(n =>
+        n.id === edge.from && n.type === "object"
+          ? { ...n, componentIds: (n.componentIds ?? []).filter(id => id !== edge.to) }
+          : n));
+    }
   };
 
   // ── Scene-graph operations ──
@@ -406,16 +433,19 @@ export function VibeArchitect() {
             </marker>
           </defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            {renderEdges(edges, nodeMap, rendered, zoom, nodeSizes, updateEdgeLabel, deleteEdge)}
+            {renderEdges(edges, nodeMap, rendered, zoom, nodeSizes, deleteEdge)}
             {renderEdgeDraft(edgeDraft, rect, nodeMap, pointerPos, pan, zoom, nodeSizes)}
             {renderAttachmentDraft(attachDraft, rect, nodeMap, pointerPos, pan, zoom, nodeSizes)}
           </g>
         </svg>
 
-        {/* Nodes (scaled) */}
+        {/* Nodes (scaled). The wrapper itself is transparent to pointer events so
+            presses on empty space fall through to the edge hit-paths (and the
+            pan area) beneath; each card re-enables pointer events on itself. */}
         <div style={{
           position: "absolute", inset: 0, transformOrigin: "0 0",
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
+          pointerEvents: "none",
         }}>
           {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleStartAttachment, onPortEnd, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
           {/* Group drag handles — rendered after the cards in the same layer so a
@@ -423,6 +453,13 @@ export function VibeArchitect() {
               grabbable. */}
           {renderGroupHandles(groups, handleDragStart)}
         </div>
+
+        {/* Edge note squares (scaled) — above the cards so they are always clickable */}
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 25 }}>
+          <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+            {renderEdgeNotes(edges, nodeMap, rendered, zoom, nodeSizes, updateEdgeLabel)}
+          </g>
+        </svg>
 
         {nodes.length === 0 && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
@@ -593,32 +630,60 @@ function HasRenderedChild(
   return (childrenMap.get(nodeId) ?? []).some(id => rendered.has(id));
 }
 
-/** Edges whose endpoints are both rendered. */
+/** Where an edge's noodle starts and ends, and whether it is an object attachment. */
+interface EdgeAnchors {
+  from: GraphNode;
+  to: GraphNode;
+  pointA: Point;
+  pointB: Point;
+  isAttachment: boolean;
+}
+
+/**
+ * Resolve an edge's endpoints. Returns null when either node is missing or
+ * not rendered. Object→component attachments anchor at both nodes' top ports.
+ */
+function EdgeAnchorsFor(
+  edge: GraphEdge,
+  nodeMap: Map<string, GraphNode>,
+  rendered: Set<string>,
+  nodeSizes: Record<string, NodeSize>,
+): EdgeAnchors | null {
+  const from = nodeMap.get(edge.from);
+  const to = nodeMap.get(edge.to);
+  if (from === undefined || to === undefined) {
+    return null;
+  }
+  if (!rendered.has(edge.from) || !rendered.has(edge.to)) {
+    return null;
+  }
+  const isAttachment = from.type === "object";
+  const pointA = isAttachment ? PortIn(from, nodeSizes[edge.from]) : EdgeSourcePoint(edge, from, nodeSizes[edge.from]);
+  const pointB = isAttachment ? PortIn(to, nodeSizes[edge.to]) : EdgeTargetPoint(edge, to, nodeSizes[edge.to]);
+  return { from, to, pointA, pointB, isAttachment };
+}
+
+/** World position of an edge's note square: just above the noodle's midpoint. */
+function EdgeNotePosition(anchors: EdgeAnchors): Point {
+  return { x: (anchors.pointA.x + anchors.pointB.x) / 2, y: (anchors.pointA.y + anchors.pointB.y) / 2 - 8 };
+}
+
+/** Edge noodles (lines only) whose endpoints are both rendered. */
 function renderEdges(
   edges: GraphEdge[],
   nodeMap: Map<string, GraphNode>,
   rendered: Set<string>,
   zoom: number,
   nodeSizes: Record<string, NodeSize>,
-  updateEdgeLabel: (edgeId: string, label: string) => void,
   deleteEdge: (edgeId: string) => void,
 ) {
   return edges.map(edge => {
-    const from = nodeMap.get(edge.from);
-    const to = nodeMap.get(edge.to);
-    if (from === undefined || to === undefined) {
+    const anchors = EdgeAnchorsFor(edge, nodeMap, rendered, nodeSizes);
+    if (anchors === null) {
       return null;
     }
-    if (!rendered.has(edge.from) || !rendered.has(edge.to)) {
-      return null;
-    }
-    // Object→component attachments anchor at the object's top port and are
-    // drawn in the object accent so they read as a distinct relationship.
-    const isAttachment = from.type === "object";
-    const pointA = isAttachment ? PortIn(from, nodeSizes[edge.from]) : PortOut(from, nodeSizes[edge.from]);
-    const pointB = PortIn(to, nodeSizes[edge.to]);
+    const { from, to, pointA, pointB, isAttachment } = anchors;
     const path = isAttachment ? AttachmentEdgePath(from, to, nodeSizes[edge.from], nodeSizes[edge.to]) : EdgePathFromPoints(pointA, pointB);
-    const mid = { x: (pointA.x + pointB.x) / 2, y: (pointA.y + pointB.y) / 2 };
     const color = isAttachment ? "#22d3ee" : "#333";
     return (
       <g key={edge.id}>
@@ -634,15 +699,36 @@ function renderEdges(
         >
           <title>Click to remove</title>
         </path>
-        <EdgeLabel edge={edge} pos={{ x: mid.x, y: mid.y - 8 }} onUpdate={updateEdgeLabel} zoom={zoom} />
       </g>
     );
   });
 }
 
+/**
+ * Edge note squares. Rendered in a separate SVG layer stacked above the node
+ * cards, so a note that happens to sit under a card is still clickable
+ * (the card layer would otherwise swallow the press and start a drag).
+ */
+function renderEdgeNotes(
+  edges: GraphEdge[],
+  nodeMap: Map<string, GraphNode>,
+  rendered: Set<string>,
+  zoom: number,
+  nodeSizes: Record<string, NodeSize>,
+  updateEdgeLabel: (edgeId: string, label: string) => void,
+) {
+  return edges.map(edge => {
+    const anchors = EdgeAnchorsFor(edge, nodeMap, rendered, nodeSizes);
+    if (anchors === null) {
+      return null;
+    }
+    return <EdgeLabel key={edge.id} edge={edge} pos={EdgeNotePosition(anchors)} onUpdate={updateEdgeLabel} zoom={zoom} />;
+  });
+}
+
 /** The in-progress dashed edge from a port to the cursor. */
 function renderEdgeDraft(
-  edgeDraft: { from: string; to: string | null } | null,
+  edgeDraft: { from: string, fromSide: PortSide, to: string | null } | null,
   rect: DOMRect | undefined,
   nodeMap: Map<string, GraphNode>,
   mousePos: Point,
@@ -657,7 +743,7 @@ function renderEdgeDraft(
   if (fromNode === undefined) {
     return null;
   }
-  const from = PortOut(fromNode, nodeSizes[edgeDraft.from]);
+  const from = PortForSide(fromNode, edgeDraft.fromSide, nodeSizes[edgeDraft.from]);
   const toX = (mousePos.x - rect.left - pan.x) / zoom;
   const toY = (mousePos.y - rect.top - pan.y) / zoom;
   return (
@@ -715,10 +801,10 @@ function renderNodes(
   handleDragStart: (event: ReactPointerEvent, id: string, group?: boolean) => void,
   updateNode: (id: string, patch: Partial<GraphNode>) => void,
   deleteNode: (id: string) => void,
-  handleStartEdge: (id: string, event: ReactPointerEvent) => void,
-  handleEndEdge: (id: string) => void,
+  handleStartEdge: (id: string, side: PortSide, event: ReactPointerEvent) => void,
+  handleEndEdge: (id: string, side: PortSide) => void,
   handleStartAttachment: (id: string, event: ReactPointerEvent) => void,
-  onPortEnd: (id: string) => void,
+  onPortEnd: (id: string, side: PortSide) => void,
   handleRunAgent: (id: string) => void,
   zoom: number,
   toggleCollapse: (id: string) => void,

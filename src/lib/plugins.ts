@@ -191,7 +191,7 @@ export function NodeDefaultsFor(type: NodeType, plugins: Plugin[]): { name: stri
 /** Fixed defaults for the four built-in node types. */
 function NodeDefaultsForBuiltIn(type: "file" | "folder" | "concept" | "object"): { name: string; desc: string } {
   const defaults: Record<"file" | "folder" | "concept" | "object", { name: string; desc: string }> = {
-    file: { name: "new_file.js", desc: "Describe what this file does…" },
+    file: { name: "new_file", desc: "Describe what this file does…" },
     folder: { name: "new_folder/", desc: "Describe what this folder contains…" },
     concept: { name: "Untitled concept", desc: "Describe this architectural concept…" },
     object: { name: "new_object", desc: "Describe this object and its components…" },
