@@ -1,5 +1,5 @@
 import { NODE_H, NODE_W } from "./constants";
-import type { GraphEdge, GraphNode, IngestFileEntry, LayoutResult } from "./types";
+import type { GraphEdge, GraphNode, IngestFileEntry, LayoutResult, Point } from "./types";
 
 /**
  * Automatic layout: Sugiyama-style DAG arrangement.
@@ -145,12 +145,188 @@ export function DagLayout(nodes: GraphNode[], edges: GraphEdge[]): LayoutResult 
   };
 }
 
+const TIDY_SIBLING_GAP_X = 40;
+const TIDY_SIBLING_GAP_Y = 44;
+const TIDY_LEVEL_GAP_Y = 70;
+const TIDY_ROOT_GAP_X = 90;
+const TIDY_ROOT_GAP_Y = 90;
+
+/** A laid-out subtree: its size and the position of every node inside it. */
+interface LayoutBlock {
+  width: number;
+  height: number;
+  positions: Map<string, Point>;
+}
+
+/** One row of sibling blocks plus the row's measured size. */
+interface LayoutRow {
+  blocks: LayoutBlock[];
+  width: number;
+  height: number;
+  gapX: number;
+}
+
+/** Direct children of every parent, preserving input order. */
+function ChildrenByParent(nodes: GraphNode[]): Map<string, GraphNode[]> {
+  const childrenByParent = new Map<string, GraphNode[]>();
+  for (const node of nodes) {
+    if (node.parentId === null) {
+      continue;
+    }
+    const siblings = childrenByParent.get(node.parentId) ?? [];
+    siblings.push(node);
+    childrenByParent.set(node.parentId, siblings);
+  }
+  return childrenByParent;
+}
+
+/** Pack blocks into left-aligned rows, wrapping before `maxWidth`. */
+function PackRows(blocks: LayoutBlock[], gapX: number, maxWidth: number): LayoutRow[] {
+  const rows: LayoutRow[] = [];
+  let currentBlocks: LayoutBlock[] = [];
+  let currentWidth = 0;
+  for (const block of blocks) {
+    const widthWithGap = currentBlocks.length === 0 ? block.width : currentWidth + gapX + block.width;
+    if (currentBlocks.length > 0 && widthWithGap > maxWidth) {
+      rows.push({
+        blocks: currentBlocks,
+        width: currentWidth,
+        height: Math.max(...currentBlocks.map(entry => entry.height)),
+        gapX,
+      });
+      currentBlocks = [];
+      currentWidth = 0;
+    }
+    currentWidth = currentBlocks.length === 0 ? block.width : currentWidth + gapX + block.width;
+    currentBlocks.push(block);
+  }
+  if (currentBlocks.length > 0) {
+    rows.push({
+      blocks: currentBlocks,
+      width: currentWidth,
+      height: Math.max(...currentBlocks.map(entry => entry.height)),
+      gapX,
+    });
+  }
+  return rows;
+}
+
+/** Stack the rows vertically, offsetting every block's positions into place. */
+function StackRows(rows: LayoutRow[], gapY: number): LayoutBlock {
+  const positions = new Map<string, Point>();
+  let rowY = 0;
+  let width = 0;
+  for (const row of rows) {
+    let blockX = 0;
+    for (const block of row.blocks) {
+      for (const [id, position] of block.positions) {
+        positions.set(id, { x: blockX + position.x, y: rowY + position.y });
+      }
+      blockX += block.width + row.gapX;
+    }
+    width = Math.max(width, row.width);
+    rowY += row.height + gapY;
+  }
+  const height = rowY > 0 ? rowY - gapY : 0;
+  return { width, height, positions };
+}
+
+/**
+ * Lay a node and its descendants out as a nested block: the node sits above
+ * a wrapped grid of its children's own blocks, so folders stay visually
+ * grouped instead of being flattened into one very wide row.
+ */
+function LayoutSubtree(
+  node: GraphNode,
+  childrenByParent: Map<string, GraphNode[]>,
+  placed: Set<string>,
+  rowWidth: number,
+): LayoutBlock {
+  placed.add(node.id);
+  const positions = new Map<string, Point>();
+  positions.set(node.id, { x: 0, y: 0 });
+
+  const children = (childrenByParent.get(node.id) ?? []).filter(child => !placed.has(child.id));
+  if (children.length === 0) {
+    return { width: NODE_W, height: NODE_H, positions };
+  }
+
+  const childBlocks = children
+    .map(child => LayoutSubtree(child, childrenByParent, placed, rowWidth))
+    .filter(block => block.positions.size > 0);
+  const rows = PackRows(childBlocks, TIDY_SIBLING_GAP_X, rowWidth);
+  const childrenArea = StackRows(rows, TIDY_SIBLING_GAP_Y);
+  if (childrenArea.positions.size === 0) {
+    return { width: NODE_W, height: NODE_H, positions };
+  }
+
+  const blockWidth = Math.max(NODE_W, childrenArea.width);
+  positions.set(node.id, { x: (blockWidth - NODE_W) / 2, y: 0 });
+  for (const [id, position] of childrenArea.positions) {
+    positions.set(id, { x: position.x, y: NODE_H + TIDY_LEVEL_GAP_Y + position.y });
+  }
+  return { width: blockWidth, height: NODE_H + TIDY_LEVEL_GAP_Y + childrenArea.height, positions };
+}
+
+/**
+ * Hierarchy-aware tidy layout: every node sits above the children it groups,
+ * so folder boxes and their noodles stay meaningful. Child grids wrap at a
+ * readable width instead of stretching into a single screen-wide row.
+ */
+export function HierarchyLayout(nodes: GraphNode[]): LayoutResult {
+  if (nodes.length === 0) {
+    return { nodes };
+  }
+
+  const ids = new Set(nodes.map(node => node.id));
+  const childrenByParent = ChildrenByParent(nodes);
+  const sortKey = (node: GraphNode): string => node.path || node.name || "";
+  for (const children of childrenByParent.values()) {
+    children.sort((left, right) => sortKey(left).localeCompare(sortKey(right)));
+  }
+
+  const ordered = nodes.slice().sort((left, right) => sortKey(left).localeCompare(sortKey(right)));
+  const roots = ordered.filter(node => node.parentId === null || !ids.has(node.parentId));
+  const rootOrder = roots.length > 0 ? roots : ordered;
+  const rowWidth = Math.max(NODE_W * 3, Math.ceil(Math.sqrt(nodes.length)) * (NODE_W + TIDY_SIBLING_GAP_X));
+
+  const placed = new Set<string>();
+  const rootBlocks: LayoutBlock[] = [];
+  for (const root of rootOrder) {
+    if (placed.has(root.id)) {
+      continue;
+    }
+    rootBlocks.push(LayoutSubtree(root, childrenByParent, placed, rowWidth));
+  }
+  // A parent cycle leaves no reachable roots; lay the leftovers out anyway.
+  for (const node of ordered) {
+    if (placed.has(node.id)) {
+      continue;
+    }
+    rootBlocks.push(LayoutSubtree(node, childrenByParent, placed, rowWidth));
+  }
+
+  const rootRows = PackRows(rootBlocks, TIDY_ROOT_GAP_X, rowWidth * 1.6);
+  const graph = StackRows(rootRows, TIDY_ROOT_GAP_Y);
+  const minX = Math.min(...Array.from(graph.positions.values()).map(position => position.x));
+  const minY = Math.min(...Array.from(graph.positions.values()).map(position => position.y));
+
+  return {
+    nodes: nodes.map(node => {
+      const position = graph.positions.get(node.id);
+      if (position === undefined) {
+        return node;
+      }
+      return { ...node, x: LAYOUT_START + position.x - minX, y: LAYOUT_START + position.y - minY };
+    }),
+  };
+}
+
 /**
  * Simple grid auto-layout (kept as fallback). Returns one position per
  * entry, in order.
  */
-export function AutoLayoutGrid(entries: IngestFileEntry[]): { x: number; y: number }[] {
-  const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length)));
+export function AutoLayoutGrid(entries: IngestFileEntry[]): { x: number; y: number }[] {  const cols = Math.max(1, Math.ceil(Math.sqrt(entries.length)));
   const xGap = NODE_W + 80;
   const yGap = NODE_H + 60;
   return entries.map((_, index) => ({

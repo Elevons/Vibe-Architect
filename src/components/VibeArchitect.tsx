@@ -7,7 +7,7 @@ import { FONT, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/c
 import { LoadEmbeddedDocument, SaveEmbeddedDocument, IsEmbedded } from "../lib/embedded";
 import { DescendantBounds, AttachmentEdgePath, EdgePathFromPoints, EdgeSourcePoint, EdgeTargetPoint, PortForSide, PortIn, VisibleBounds } from "../lib/geometry";
 import { CreateUniqueId } from "../lib/ids";
-import { DagLayout } from "../lib/layout";
+import { HierarchyLayout } from "../lib/layout";
 import { NodeDefaultsFor } from "../lib/plugins";
 import { BuildChildrenMap, BuildNodeMap, ComputeRenderedSet, DescendantCount, SetParent, SubtreeIds } from "../lib/sceneGraph";
 import type { Bounds, GraphEdge, GraphNode, GraphSnapshot, NodeSize, NodeType, Point, Plugin, PortSide, RunMode } from "../lib/types";
@@ -285,7 +285,12 @@ export function VibeArchitect() {
 
   // ── Fit / tidy ──
   const fitBounds = (bounds: Bounds): void => {
-    const newZoom = Math.min(canvasSize.width / bounds.w, canvasSize.height / bounds.h, 2) * 0.85;
+    if (canvasSize.width <= 0 || canvasSize.height <= 0 || bounds.w <= 0 || bounds.h <= 0) {
+      return;
+    }
+    // Fit may zoom out past the gesture floor so a large graph still fits.
+    const rawZoom = Math.min(canvasSize.width / bounds.w, canvasSize.height / bounds.h, 2) * 0.85;
+    const newZoom = Math.min(MAX_ZOOM, rawZoom);
     setPan({
       x: canvasSize.width / 2 - (bounds.x + bounds.w / 2) * newZoom,
       y: canvasSize.height / 2 - (bounds.y + bounds.h / 2) * newZoom,
@@ -300,9 +305,9 @@ export function VibeArchitect() {
   };
 
   const handleTidy = (): void => {
-    const { nodes: laidNodes } = DagLayout(nodes, edges);
+    const { nodes: laidNodes } = HierarchyLayout(nodes);
     setNodes(laidNodes);
-    setTimeout(() => fitBounds(VisibleBounds(laidNodes, ComputeRenderedSet(laidNodes))), 50);
+    setTimeout(() => fitBounds(VisibleBounds(laidNodes, ComputeRenderedSet(laidNodes), nodeSizes)), 50);
   };
 
   // ── Save / load / ingest ──

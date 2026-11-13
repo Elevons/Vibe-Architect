@@ -55,7 +55,7 @@ export function Toolbar(props: ToolbarProps) {
       <PluginsMenu plugins={props.plugins} onAddPluginNode={props.onAddPluginNode} onShowPlugins={props.onShowPlugins} />
       {renderModeSwitch(props.mode, props.onSetMode)}
       {renderZoomControls(props)}
-      <Btn onClick={props.onFitToView} style={{ fontSize: 10, padding: "4px 8px" }}>Fit</Btn>
+      <Btn onClick={props.onFitToView} title="Frame all nodes in view" style={{ fontSize: 10, padding: "4px 8px" }}>Frame All</Btn>
       <Btn onClick={props.onTidy} style={{ fontSize: 10, padding: "4px 8px", background: "#22d3ee18", color: "#22d3ee", borderColor: "#22d3ee30" }}>Tidy</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(false)} style={{ fontSize: 10, padding: "4px 8px" }}>Expand All</Btn>
       <Btn onClick={() => props.onSetAllCollapsed(true)} style={{ fontSize: 10, padding: "4px 8px" }}>Collapse All</Btn>
