@@ -285,15 +285,20 @@ export function VibeArchitect() {
 
   // ── Fit / tidy ──
   const fitBounds = (bounds: Bounds): void => {
-    if (canvasSize.width <= 0 || canvasSize.height <= 0 || bounds.w <= 0 || bounds.h <= 0) {
+    // Measure the canvas live so framing still works if the size state has
+    // not caught up (the canvas can mount after the first render).
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const width = rect !== undefined ? rect.width : canvasSize.width;
+    const height = rect !== undefined ? rect.height : canvasSize.height;
+    if (width <= 0 || height <= 0 || bounds.w <= 0 || bounds.h <= 0) {
       return;
     }
     // Fit may zoom out past the gesture floor so a large graph still fits.
-    const rawZoom = Math.min(canvasSize.width / bounds.w, canvasSize.height / bounds.h, 2) * 0.85;
+    const rawZoom = Math.min(width / bounds.w, height / bounds.h, 2) * 0.85;
     const newZoom = Math.min(MAX_ZOOM, rawZoom);
     setPan({
-      x: canvasSize.width / 2 - (bounds.x + bounds.w / 2) * newZoom,
-      y: canvasSize.height / 2 - (bounds.y + bounds.h / 2) * newZoom,
+      x: width / 2 - (bounds.x + bounds.w / 2) * newZoom,
+      y: height / 2 - (bounds.y + bounds.h / 2) * newZoom,
     });
     setZoom(newZoom);
   };

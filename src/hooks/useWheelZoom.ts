@@ -4,7 +4,8 @@ import { MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from "../lib/constants";
 /**
  * Non-passive wheel zoom on the canvas: steps the zoom by ZOOM_STEP (scaled
  * by the current zoom) toward the cursor, keeping the world point under the
- * mouse fixed.
+ * mouse fixed. The listener attachment retries while the canvas is not yet
+ * mounted (embedded mode shows a loading screen first).
  */
 export function useWheelZoom(
   canvasRef: { current: HTMLDivElement | null },
@@ -14,13 +15,16 @@ export function useWheelZoom(
   setZoom: (zoom: number) => void,
 ): void {
   useEffect(() => {
-    const element = canvasRef.current;
-    if (element === null) {
-      return;
-    }
+    let element: HTMLDivElement | null = null;
+    let frame = 0;
+    let attempts = 0;
+
     const onWheel = (event: WheelEvent): void => {
       event.preventDefault();
-      const rect = element.getBoundingClientRect();
+      const rect = element?.getBoundingClientRect();
+      if (rect === undefined) {
+        return;
+      }
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
 
@@ -35,7 +39,25 @@ export function useWheelZoom(
       setPan({ x: mouseX - worldX * newZoom, y: mouseY - worldY * newZoom });
       setZoom(newZoom);
     };
-    element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
+
+    const attach = (): void => {
+      element = canvasRef.current;
+      if (element === null) {
+        if (attempts < 600) {
+          attempts += 1;
+          frame = requestAnimationFrame(attach);
+        }
+        return;
+      }
+      element.addEventListener("wheel", onWheel, { passive: false });
+    };
+
+    attach();
+    return () => {
+      cancelAnimationFrame(frame);
+      if (element !== null) {
+        element.removeEventListener("wheel", onWheel);
+      }
+    };
   }, [canvasRef, pan, zoom, setPan, setZoom]);
 }
