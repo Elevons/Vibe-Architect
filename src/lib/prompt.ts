@@ -52,9 +52,6 @@ export function BuildArchitecturePrompt(
     lines.push(`### ${step}${node.name} [${node.type}]`);
     lines.push(node.desc);
     lines.push(`Path: ${NodePath(node, nodeById)}`);
-    if (node.agentOutput !== null) {
-      lines.push(`Generated code available: yes (${node.agentOutput.split("\n").length} lines)`);
-    }
     lines.push("");
   }
 

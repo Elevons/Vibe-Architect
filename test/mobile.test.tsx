@@ -204,9 +204,9 @@ async function run(): Promise<void> {
   const fileBox6b = secondCard.getBoundingClientRect();
   fire(secondCard, "pointerdown", fileBox6b.left + 20, fileBox6b.top + 20, 1);
   await nextFrame();
-  fire(secondCard, "pointermove", fileBox6b.left + 20, fileBox6b.top + 20 + 320, 1);
+  fire(secondCard, "pointermove", fileBox6b.left + 20, fileBox6b.top + 20 + 220, 1);
   await nextFrame();
-  fire(secondCard, "pointerup", fileBox6b.left + 20, fileBox6b.top + 20 + 320, 1);
+  fire(secondCard, "pointerup", fileBox6b.left + 20, fileBox6b.top + 20 + 220, 1);
   await nextFrame();
   const noteHitRect = Array.from(document.querySelectorAll("svg rect")).find(rect => rect.getAttribute("fill") === "transparent") as SVGRectElement | undefined;
   if (noteHitRect === undefined) {
@@ -340,10 +340,10 @@ async function run(): Promise<void> {
   if (foldButton === undefined) {
     throw new Error("fold chevron not found on folder row");
   }
-  const childRowsBefore = rows().filter(row => row.textContent?.includes("new_file.js")).length;
+  const childRowsBefore = rows().filter(row => row.textContent?.includes("new_file")).length;
   foldButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   await nextFrame();
-  const childRowsAfter = rows().filter(row => row.textContent?.includes("new_file.js")).length;
+  const childRowsAfter = rows().filter(row => row.textContent?.includes("new_file")).length;
   pass("hierarchy fold", childRowsAfter === childRowsBefore - 1, `rows ${childRowsBefore} → ${childRowsAfter}`);
 
   // ── Test 11: an edge into a folder groups the other node under it ──

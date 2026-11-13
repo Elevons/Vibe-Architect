@@ -6,8 +6,9 @@ import { Btn } from "./Btn";
 /**
  * Top toolbar: the built-in node types listed inline at the top, a Plugins
  * dropdown for custom node packages (each package is a submenu within it),
- * run mode, zoom controls, layout actions, and the run/save/ingest/prompt
- * entry points.
+ * prompt order, zoom controls, layout actions, and the save/ingest/prompt
+ * entry points. Embedded in a host app, the graph is the host's, so the
+ * Save/Load entry is hidden.
  */
 
 interface ToolbarProps {
@@ -27,7 +28,8 @@ interface ToolbarProps {
   onSetAllCollapsed: (collapsed: boolean) => void;
   hierarchyOpen: boolean;
   onToggleHierarchy: () => void;
-  onRunAll: () => void;
+  /** True inside a host app that owns storage: hides Save/Load. */
+  embedded: boolean;
   onShowSaveLoad: () => void;
   onShowIngest: () => void;
   onShowPlugins: () => void;
@@ -69,8 +71,7 @@ export function Toolbar(props: ToolbarProps) {
       >☰ Hierarchy</Btn>
       <div className="va-spacer" style={{ flex: 1 }} />
       <span className="va-counts" style={{ color: "#555", fontSize: 10 }}>{props.nodeCount}n · {props.edgeCount}e</span>
-      <Btn onClick={props.onRunAll} style={{ background: "#4ade8018", color: "#4ade80", borderColor: "#4ade8030", fontSize: 11, padding: "4px 10px" }}>▶ Run All</Btn>
-      <Btn onClick={props.onShowSaveLoad} style={{ fontSize: 11, padding: "4px 10px" }}>💾 Save/Load</Btn>
+      {!props.embedded && <Btn onClick={props.onShowSaveLoad} style={{ fontSize: 11, padding: "4px 10px" }}>💾 Save/Load</Btn>}
       <Btn onClick={props.onShowIngest} style={{ fontSize: 11, padding: "4px 10px", background: "#f472b618", color: "#f472b6", borderColor: "#f472b630" }}>📂 Ingest</Btn>
       <button
         onClick={props.onExportPrompt}
@@ -299,10 +300,13 @@ function menuItemStyle() {
   };
 }
 
-/** parallel / serial segmented switch. */
+/**
+ * parallel / serial segmented switch. Serial lists the modules in the
+ * exported prompt as numbered build steps in dependency order.
+ */
 function renderModeSwitch(mode: RunMode, onSetMode: (mode: RunMode) => void) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 3, background: "#ffffff06", border: "1px solid #333", borderRadius: 5, padding: 2 }}>
+    <div title="Prompt order: serial numbers the modules as build steps" style={{ display: "flex", alignItems: "center", gap: 3, background: "#ffffff06", border: "1px solid #333", borderRadius: 5, padding: 2 }}>
       {RUN_MODES.map(entry => (
         <button
           key={entry}

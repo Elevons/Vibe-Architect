@@ -11,7 +11,7 @@ import type { GraphNode, NodeType, Plugin, PortSide } from "../lib/types";
 /**
  * A single box on the canvas. Double-click (or double-tap) enters edit mode
  * (name, spec, type, parent); when selected, an action row offers
- * Edit / Agent / Code / Delete. Ports on the edges start and end
+ * Edit / Delete. Ports on the edges start and end
  * connections.
  *
  * Corner controls: an eye toggles the node's own visibility, and a chevron
@@ -36,7 +36,6 @@ interface NodeCardProps {
   onEndEdge: (id: string, side: PortSide) => void;
   onStartAttachment: (id: string, event: ReactPointerEvent) => void;
   onPortEnd: (id: string, side: PortSide) => void;
-  onRunAgent: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onSetVisible: (id: string, visible: boolean) => void;
   onSetParent: (id: string, parentId: string | null) => void;
@@ -51,7 +50,6 @@ export function NodeCard(props: NodeCardProps) {
   const [editing, setEditing] = useState(false);
   const [localName, setLocalName] = useState(node.name);
   const [localDesc, setLocalDesc] = useState(node.desc);
-  const [showOutput, setShowOutput] = useState(false);
 
   // Keep local edit buffers in sync when the node changes externally.
   useEffect(() => {
@@ -63,7 +61,7 @@ export function NodeCard(props: NodeCardProps) {
   const doubleTap = useDoubleTap(beginEdit);
 
   // Measure the real card box and report it upward. Cards grow with their
-  // content (description, action row, edit form, agent output), so edges
+  // content (description, action row, edit form), so edges
   // anchor to the measured port position rather than a default height.
   // useLayoutEffect reports synchronously (reading offsetHeight forces a
   // layout flush) on every change that alters the card's height, so edges
@@ -79,7 +77,7 @@ export function NodeCard(props: NodeCardProps) {
   useLayoutEffect(() => {
     reportSize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [node.id, node.collapsed, editing, selected, showOutput, node.agentOutput, props.onSizeChange]);
+  }, [node.id, node.collapsed, editing, selected, props.onSizeChange]);
   useEffect(() => {
     const element = cardRef.current;
     if (element === null) {
@@ -144,14 +142,7 @@ export function NodeCard(props: NodeCardProps) {
       {editing
         ? renderEditForm(node, nodes, plugins, localName, localDesc, colors, setLocalName, setLocalDesc, commitEdit, cancelEdit, props)
         : renderDisplay(node, nodes, plugins, beginEdit, isParent, node.type === "folder", props.onGroupDragStart)}
-      {selected && !editing && renderActionRow(node, showOutput, setEditing, setShowOutput, props)}
-      {showOutput && node.agentOutput !== null && (
-        <pre style={{
-          marginTop: 8, padding: 8, background: "#0a0a0f", border: "1px solid #222", borderRadius: 4,
-          fontSize: 10, color: "#8b8", fontFamily: FONT, maxHeight: 180, overflow: "auto",
-          whiteSpace: "pre-wrap", lineHeight: 1.4,
-        }}>{node.agentOutput}</pre>
-      )}
+      {selected && !editing && renderActionRow(node, setEditing, props)}
     </div>
   );
 }
@@ -259,20 +250,6 @@ function renderCornerControls(node: GraphNode, isParent: boolean, props: NodeCar
   );
 }
 
-/** Color of the agent status dot; transparent when idle. */
-function AgentStatusColor(status: GraphNode["agentStatus"]): string {
-  if (status === "running") {
-    return "#facc15";
-  }
-  if (status === "done") {
-    return "#4ade80";
-  }
-  if (status === "error") {
-    return "#f87171";
-  }
-  return "transparent";
-}
-
 /**
 /**
  * Ports. Non-object cards (folders, files, concepts, custom types) have a
@@ -340,7 +317,6 @@ function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], b
   const colors = ColorsForType(node.type, plugins);
   const nodeMap = BuildNodeMap(nodes);
   const parentName = node.parentId !== null ? nodeMap.get(node.parentId)?.name ?? "" : "";
-  const statusColor = AgentStatusColor(node.agentStatus);
   return (
     <div onDoubleClick={beginEdit}>
       <div
@@ -351,12 +327,6 @@ function renderDisplay(node: GraphNode, nodes: GraphNode[], plugins: Plugin[], b
           background: isFolder ? "#ffffff08" : "transparent",
           borderBottom: isFolder ? "1px solid #ffffff14" : "none", borderRadius: "4px 4px 0 0",
         }}>
-        {node.agentStatus !== "idle" && (
-          <span style={{
-            width: 8, height: 8, borderRadius: "50%", background: statusColor, flexShrink: 0,
-            animation: node.agentStatus === "running" ? "pulse 1s infinite" : "none",
-          }} />
-        )}
         <span style={{
           fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#f0f0f0",
           letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -480,32 +450,15 @@ function ParentOptions(nodes: GraphNode[], nodeId: string): GraphNode[] {
   return nodes.filter(node => !excluded.has(node.id));
 }
 
-/** Action row shown while the card is selected: Edit, Agent, Code, Delete. */
+/** Action row shown while the card is selected: Edit, Delete. */
 function renderActionRow(
   node: GraphNode,
-  showOutput: boolean,
   setEditing: (editing: boolean) => void,
-  setShowOutput: (show: boolean) => void,
   props: NodeCardProps,
 ) {
-  const running = node.agentStatus === "running";
   return (
     <div style={{ display: "flex", gap: 3, marginTop: 8, flexWrap: "wrap" }}>
       <Btn onClick={() => setEditing(true)} style={{ minHeight: 30 }}>Edit</Btn>
-      <Btn
-        onClick={() => props.onRunAgent(node.id)}
-        style={{
-          background: running ? "#facc1520" : "#818cf815",
-          color: running ? "#facc15" : "#818cf8",
-          borderColor: running ? "#facc1540" : "#818cf830",
-          minHeight: 30,
-        }}
-      >
-        {running ? "Running…" : "▶ Agent"}
-      </Btn>
-      {node.agentOutput !== null && (
-        <Btn onClick={() => setShowOutput(!showOutput)} style={{ minHeight: 30 }}>{showOutput ? "Hide" : "Code"}</Btn>
-      )}
       <Btn
         onClick={() => props.onDelete(node.id)}
         style={{ background: "#ff000018", color: "#f87171", borderColor: "#ff000030", marginLeft: "auto", minHeight: 30, minWidth: 30 }}

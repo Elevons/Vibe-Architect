@@ -1,5 +1,4 @@
 import { CreateUniqueId } from "./ids";
-import { DescribeFile } from "./agent";
 import { DagLayout } from "./layout";
 import type { GraphEdge, GraphNode, IngestFileEntry, IngestResult } from "./types";
 
@@ -37,8 +36,6 @@ export function GetExtension(name: string): string {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
 }
 
-
-
 /**
  * Auto-build the folder hierarchy from file paths: one folder node per
  * directory (nested by path, created collapsed), each file parented to its
@@ -63,7 +60,6 @@ export function AutoParentFromNodes(nodes: GraphNode[]): GraphNode[] {
     folderNodes.push({
       id: folderId, x: 0, y: 0, name: `${dir}/`, path: dir,
       desc: `Directory ${dir}`, type: "folder", parentId, visible: true, collapsed: true,
-      agentOutput: null, agentStatus: "idle",
     });
     return folderId;
   };
@@ -84,27 +80,17 @@ export function AutoParentFromNodes(nodes: GraphNode[]): GraphNode[] {
 }
 
 /**
- * Turn the read files into a laid-out graph: one node per file (described
- * by the LLM unless skipped), files parented under auto-created (collapsed)
- * folder nodes, one grouping edge per folder → child, then DAG-laid-out.
+ * Turn the found files into a laid-out graph: one node per file, parented
+ * under auto-created (collapsed) folder nodes, one grouping edge per
+ * folder → child, then DAG-laid-out. Only paths are used; descriptions
+ * start empty for the designer (or a host agent) to fill in.
  */
-export async function BuildIngestGraph(
-  files: IngestFileEntry[],
-  skipDescribe: boolean,
-  onProgress: (index: number, name: string) => void,
-): Promise<IngestResult> {
+export function BuildIngestGraph(files: IngestFileEntry[]): IngestResult {
   const nodes: GraphNode[] = [];
-
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
-    const id = CreateUniqueId("n");
-    onProgress(index + 1, file.name);
-
-    const description = skipDescribe ? file.path : await DescribeFile(file.path, file.content.slice(0, 2000));
+  for (const file of files) {
     nodes.push({
-      id, x: 0, y: 0, name: file.name, path: file.path, desc: description,
+      id: CreateUniqueId("n"), x: 0, y: 0, name: file.name, path: file.path, desc: "",
       type: "file", parentId: null, visible: true, collapsed: false,
-      agentOutput: file.content, agentStatus: "done",
     });
   }
 

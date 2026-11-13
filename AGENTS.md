@@ -1,7 +1,7 @@
 # Vibe Architect — Agent Handoff Summary
 
 ## What it is
-A node-graph canvas app for designing software architecture: files/folders/concepts are draggable cards, grouping is bezier "noodle" edges drawn from folders down to their children (the graph is an architecture doc, not an import map), and an AI agent (Anthropic Messages API) can generate code per node from upstream context. Persistence is plain JSON files (portable between machines). Fully touch/mobile compatible.
+A node-graph canvas app for designing software architecture: files/folders/concepts/objects are draggable cards, grouping is bezier "noodle" edges drawn from folders down to their children (the graph is an architecture doc, not an import map), and the graph exports as a build prompt for another agent. AI calls were removed; Bartleby (the host) does the thinking. Persistence is plain JSON (portable between machines) and an embedded host API. Fully touch/mobile compatible.
 
 **Terminology note:** the *original* app was a single-file upload (`vibe-architect(1).jsx`, ~1190 lines). The current project is a **structured multi-file TypeScript codebase** — but it is still a *single-page web app* in the routing sense: one `index.html`, no router, one full-screen canvas. "Single page" refers to the web app structure, not the file count.
 
@@ -14,8 +14,10 @@ A node-graph canvas app for designing software architecture: files/folders/conce
 ```
 src/
   main.tsx, App.tsx, vite-env.d.ts
+  core.ts     headless entry: operations + prompt + normalization (built to dist/core.js)
+  server.js   optional standalone static server + /api/graphs storage
   lib/        types, constants, ids, geometry, graph, layout, sceneGraph,
-              fileStorage, prompt, agent, anthropic, ingest, plugins
+              operations, embedded, fileStorage, prompt, ingest, plugins
   hooks/      useCanvasSize, useWheelZoom, useCanvasInteraction, useDoubleTap
   components/ VibeArchitect (root), NodeCard, EdgeLabel, Minimap, Toolbar,
               StatusBar, HierarchyPanel, Btn,
@@ -28,9 +30,9 @@ examples/     vibe-architect.json (graph), blender2babylon-kit.json (plugin)
 ```
 
 ## Core data model (`src/lib/types.ts`)
-- `GraphNode`: `id, x, y, name, path, desc, type, parentId: string|null, visible, collapsed, agentOutput, agentStatus`
-- `NodeType` = `"file" | "folder" | "concept" | (string & {})` — the `(string & {})` term admits plugin-defined custom types while keeping autocomplete for the built-ins
-- `GraphEdge`: `id, from, to, label` · `GraphSnapshot`: `{ nodes, edges, mode, plugins? }`
+- `GraphNode`: `id, x, y, name, path, desc, type, parentId: string|null, visible, collapsed, componentIds?`
+- `NodeType` = `"file" | "folder" | "concept" | "object" | (string & {})` — objects aggregate components via `componentIds`; the `(string & {})` term admits plugin-defined custom types
+- `GraphEdge`: `id, from, to, label, fromSide?, toSide?` · `GraphSnapshot`: `{ nodes, edges, mode, plugins? }`
 - Scene graph: `parentId` (no children arrays); `SetParent` is cycle-safe; `ComputeRenderedSet` — a node renders only if visible AND no strict ancestor is hidden/collapsed (**hiding a parent hides its subtree**; collapsing tucks children away)
 - **Folders act as groups**: only folders emit noodles — `addEdge` rejects non-folder sources; dragging from a folder's output port onto a node adds the edge and reparents the node under the folder. Files/concepts have an input port only. `FilterGroupingEdges` drops file-to-file edges from older saves on load
 
@@ -43,10 +45,11 @@ examples/     vibe-architect.json (graph), blender2babylon-kit.json (plugin)
 - Custom-type nodes render as concept-style cards with the plugin's accent color; unknown types (plugin not loaded) fall back to the concept style
 - `examples/blender2babylon-kit.json` ships concept nodes for the Blender2BabylonKit project (`/home/jordan/Projects/Blender2BabylonKit`): pipeline tooling, ECS components, runtime core, scene subsystems
 
-## AI agent (still active)
-- `src/lib/anthropic.ts` — minimal client for `https://api.anthropic.com/v1/messages` (`RequestAnthropicText(prompt, maxTokens)`)
-- `src/lib/agent.ts` — `RunAgent` (per-node code generation, fed upstream context via incoming edges — now the parent folder's description) and `DescribeFile` (used by Ingest to auto-describe ingested files)
-- Wired into the UI: `VibeArchitect.tsx` runs the agent per node / for all nodes; `NodeCard.tsx` shows a status dot and the generated output. Requires an API key at runtime (browser-side call).
+## Headless core & embedded mode
+- `src/lib/operations.ts` — pure edit rules over `{ nodes, edges }` (`AddNode`, `UpdateNode`, `RemoveNode`, `Connect`/`ConnectRefusal`, `Attach`, `Disconnect`, `SetNodeParent`, `MoveSubtree`, `SetAllCollapsed`).
+- `src/core.ts` — the host entry: `ApplyOperation(snapshot, op)`, `BuildArchitecturePrompt`, `NormalizeSnapshot`, and the operation union. `vite.core.config.js` builds it to `dist/core.js` (ESM, no DOM/React), which a host toolset imports.
+- **Embedded mode** (`src/lib/embedded.ts`): when the URL has `?embed=1`, the app loads `./api/graph` (`{ revision, graph, prompt }`), autosaves edits with `PUT { graph }` (700ms debounce), and polls every 2.5s for a newer revision (a host-tool edit). Save/Load is hidden; Ingest still works.
+- The host contract: one graph per embedded page; the server owns prompt generation in its saved document. `src/server.js` is the standalone version (`/api/graphs`, `/api/graphs/:name`).
 
 ## Key implementation facts (the gotchas)
 - **Ports are top/bottom**: input port top-center (every node), output port bottom-center (folders only — files/concepts cannot emit noodles); edges flow top→bottom. Bezier control distance = `max(50, min(|dy|·0.5, 200))`
@@ -63,7 +66,7 @@ PascalCase functions/methods; camelCase variables/fields; descriptive names (no 
 ## Run & verify
 ```bash
 npx tsc --noEmit                      # src typecheck
-npm run build                         # production build
+npm run build                         # typecheck + page build + dist/core.js
 # tests (headless Chrome, dev server must be up):
 google-chrome --headless --disable-gpu --window-size=390,844 \
   --virtual-time-budget=30000 --timeout=30000 --dump-dom \
@@ -74,6 +77,6 @@ google-chrome --headless --disable-gpu --window-size=390,844 \
 
 ## Known limitations
 - Ingest folder-picking uses the browser directory picker — desktop-only; mobile can pick individual files
-- Agent features need a valid Anthropic API key; calls go browser→API directly
+- Embedded mode expects the host to answer `./api/graph`; standalone uses the optional `server.js`
 - `test/` files are typechecked separately (tsconfig `include` is `["src"]` only)
 - Playwright/puppeteer not installed; all browser tests go through `google-chrome --headless`

@@ -38,7 +38,7 @@ export async function LoadGraphFromFile(file: File): Promise<GraphSnapshot | nul
 
 // ── Server-side storage ────────────────────────────────────────────────
 
-const API_BASE = "/api/graphs";
+const API_BASE = "./api/graphs";
 
 export interface ServerGraphEntry {
   name: string;
@@ -82,7 +82,8 @@ export async function DeleteGraphFromServer(name: string): Promise<void> {
 /**
  * Parse snapshot JSON with a light shape check: an object whose nodes and
  * edges are arrays (mode defaults to parallel). Node fields are normalized
- * so files saved before the scene-graph fields existed still load.
+ * so files saved before the scene-graph fields existed still load, and
+ * fields the app no longer uses (the old agent output) are dropped.
  */
 export function ParseGraphSnapshot(text: string): GraphSnapshot | null {
   let data: unknown;
@@ -91,6 +92,11 @@ export function ParseGraphSnapshot(text: string): GraphSnapshot | null {
   } catch {
     return null;
   }
+  return NormalizeSnapshot(data);
+}
+
+/** Validate and normalize an already-parsed snapshot. Null when malformed. */
+export function NormalizeSnapshot(data: unknown): GraphSnapshot | null {
   if (typeof data !== "object" || data === null) {
     return null;
   }
@@ -135,8 +141,6 @@ function NormalizeNode(raw: unknown, pluginTypes: Set<string>): GraphNode {
     parentId: typeof node.parentId === "string" ? node.parentId : legacyGroup,
     visible: node.visible !== false,
     collapsed: node.collapsed === true,
-    agentOutput: typeof node.agentOutput === "string" ? node.agentOutput : null,
-    agentStatus: IsAgentStatus(node.agentStatus) ? node.agentStatus : "idle",
     // Object→component attachments persist as componentIds; restore only the
     // ids that still exist as nodes (checked after every node is normalized).
     componentIds: Array.isArray(node.componentIds)
@@ -208,16 +212,9 @@ function LegacyGroupFolders(rawGroups: unknown): GraphNode[] {
       parentId: null,
       visible: true,
       collapsed: group.collapsed === true,
-      agentOutput: null,
-      agentStatus: "idle",
     });
   }
   return folders;
-}
-
-/** Narrow an unknown value to AgentStatus. */
-function IsAgentStatus(value: unknown): value is GraphNode["agentStatus"] {
-  return value === "idle" || value === "running" || value === "done" || value === "error";
 }
 
 /** A safe .json file name for the given graph name. */

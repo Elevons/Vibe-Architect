@@ -34,8 +34,6 @@ function addNode(id, name, path, desc, type, parentId, x, y) {
     x, y,
     visible: true,
     collapsed: false,
-    agentOutput: null,
-    agentStatus: "idle",
   });
 }
 function addEdge(from, to, label = "") {
@@ -62,6 +60,7 @@ addNode("pluginstest", "plugins.test.tsx", "test/plugins.test.tsx", "Plugin suit
 
 // ── Row 2: app shell ───────────────────────────────────────────────────
 addNode("app", "App.tsx", "src/App.tsx", "Top-level shell that renders the VibeArchitect canvas.", "file", "src", col(0), row(2));
+addNode("core", "core.ts", "src/core.ts", "Headless entry: graph operations, snapshot normalization, and the prompt builder for a host toolset.", "file", "src", col(1), row(2));
 
 // ── Row 3: the two big cluster folders ─────────────────────────────────
 addNode("components", "components/", "src/components", "Presentational React components for the canvas, cards, panels, and modals.", "folder", "src", col(0), row(3));
@@ -94,18 +93,19 @@ addNode("promptmodal", "PromptModal.tsx", "src/components/modals/PromptModal.tsx
 addNode("saveloadmodal", "SaveLoadModal.tsx", "src/components/modals/SaveLoadModal.tsx", "Save the graph to a JSON file and load one back.", "file", "modals", col(3), row(8));
 addNode("ingestmodal", "IngestModal.tsx", "src/components/modals/IngestModal.tsx", "Pick a directory to ingest as a graph of files and import edges.", "file", "modals", col(4), row(8));
 addNode("pluginmodal", "PluginModal.tsx", "src/components/modals/PluginModal.tsx", "Import custom node packages from JSON files and list the loaded plugins.", "file", "modals", col(5), row(8));
-addNode("agent", "agent.ts", "src/lib/agent.ts", "Per-node code-generation agent: builds a prompt and calls the model.", "file", "lib", col(6), row(8));
 addNode("ingest", "ingest.ts", "src/lib/ingest.ts", "Repository ingestion: reads files, describes them, parses imports into edges.", "file", "lib", col(7), row(8));
 
 // ── Row 9: modal shell + mid lib modules ───────────────────────────────
 addNode("modalshell", "ModalShell.tsx", "src/components/modals/ModalShell.tsx", "Shared modal chrome: backdrop, centered panel, close handling.", "file", "modals", col(2), row(9));
 addNode("geometry", "geometry.ts", "src/lib/geometry.ts", "Canvas geometry: port positions, edge curves, coordinate conversion, bounds.", "file", "lib", col(5), row(9));
+addNode("operations", "operations.ts", "src/lib/operations.ts", "Pure graph edit rules shared by the canvas and the headless core.", "file", "lib", col(7), row(9));
 addNode("prompt", "prompt.ts", "src/lib/prompt.ts", "Serializes the graph to an architecture prompt (file layout + modules + deps).", "file", "lib", col(6), row(9));
 
 // ── Row 10: lower lib modules ──────────────────────────────────────────
 addNode("graph", "graph.ts", "src/lib/graph.ts", "Graph algorithms: topological sort and cycle detection.", "file", "lib", col(5), row(10));
 addNode("scenegraph", "sceneGraph.ts", "src/lib/sceneGraph.ts", "Scene-graph ops: parent/child maps, rendered set, subtree ids, reparenting.", "file", "lib", col(6), row(10));
 addNode("filestorage", "fileStorage.ts", "src/lib/fileStorage.ts", "JSON file persistence: save downloads, load parses and normalizes snapshots (embedding their plugins).", "file", "lib", col(7), row(10));
+addNode("embedded", "embedded.ts", "src/lib/embedded.ts", "Host storage: load, save, and poll one graph beside a ticketed page.", "file", "lib", col(8), row(10));
 
 // ── Row 11: deep lib modules ───────────────────────────────────────────
 addNode("layout", "layout.ts", "src/lib/layout.ts", "DAG layout: assigns x/y so dependencies flow top to bottom.", "file", "lib", col(5), row(11));
@@ -113,7 +113,6 @@ addNode("ids", "ids.ts", "src/lib/ids.ts", "Unique id generation for nodes and e
 addNode("plugins", "plugins.ts", "src/lib/plugins.ts", "Plugin packages: parse/validate JSON node-type definitions and resolve colors and default names.", "file", "lib", col(7), row(11));
 
 // ── Row 12: leaf lib modules ───────────────────────────────────────────
-addNode("anthropic", "anthropic.ts", "src/lib/anthropic.ts", "Thin client for the Anthropic messages API.", "file", "lib", col(5), row(12));
 addNode("constants", "constants.ts", "src/lib/constants.ts", "Shared constants: card sizes, fonts, built-in type colors, group colors.", "file", "lib", col(6), row(12));
 
 // ── Row 13: the foundation ─────────────────────────────────────────────

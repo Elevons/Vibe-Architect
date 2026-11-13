@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A node-graph canvas for designing software architecture, with LLM-assisted code generation, repository ingestion, and DAG layout.",
+  "description": "A node-graph canvas for designing software architecture, with repository ingestion, a generated build prompt, and a headless editing core.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build --config vite.core.config.js",
     "preview": "vite preview",
     "server": "node server.js",
     "typecheck": "tsc --noEmit"

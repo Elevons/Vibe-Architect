@@ -84,7 +84,7 @@ async function run(): Promise<void> {
   pass("ColorsForType: unknown type falls back to concept", ColorsForType("mystery", []).dot === "#facc15");
   const defaults = NodeDefaultsFor("tp:alpha", [plugin]);
   pass("NodeDefaultsFor uses plugin label/desc", defaults.name === "Alpha" && defaults.desc === "First node", `${defaults.name}`);
-  pass("NodeDefaultsFor built-in unchanged", NodeDefaultsFor("file", []).name === "new_file.js");
+  pass("NodeDefaultsFor built-in unchanged", NodeDefaultsFor("file", []).name === "new_file");
 
   // ── Library: snapshot round-trip carries plugins ──
   const snapshotText = JSON.stringify({

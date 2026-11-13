@@ -44,10 +44,10 @@ export interface Plugin {
   nodes: PluginNodeDef[];
 }
 
-/** Lifecycle of the per-node code-generation agent. */
-export type AgentStatus = "idle" | "running" | "done" | "error";
-
-/** How "Run All" executes the agent across the graph. */
+/**
+ * How the exported prompt orders the modules: `serial` lists them as
+ * numbered build steps in dependency order, `parallel` as one set.
+ */
 export type RunMode = "parallel" | "serial";
 
 /** A box on the canvas. */
@@ -65,9 +65,6 @@ export interface GraphNode {
   visible: boolean;
   /** When true, renders as a compact card and tucks its subtree away. */
   collapsed: boolean;
-  /** Code produced by the agent, if any. */
-  agentOutput: string | null;
-  agentStatus: AgentStatus;
   /**
    * For `object` nodes: the ids of the component nodes attached to this
    * object (dragged into the object's port). Empty/absent for other types.
@@ -119,12 +116,10 @@ export interface GraphSnapshot {
   plugins?: Plugin[];
 }
 
-/** A code file read from disk during repository ingestion. */
+/** A file found during repository ingestion: its path relative to the root. */
 export interface IngestFileEntry {
   path: string;
   name: string;
-  content: string;
-  ext: string;
 }
 
 /** The graph produced by ingesting a repository. */

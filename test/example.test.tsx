@@ -26,8 +26,8 @@ async function run(): Promise<void> {
   }
 
   const { nodes, edges } = snapshot;
-  pass("node count", nodes.length === 48, `got ${nodes.length}`);
-  pass("edge count", edges.length === 44, `got ${edges.length}`);
+  pass("node count", nodes.length === 49, `got ${nodes.length}`);
+  pass("edge count", edges.length === 45, `got ${edges.length}`);
   pass("mode", snapshot.mode === "parallel", snapshot.mode);
 
   const ids = new Set(nodes.map(node => node.id));

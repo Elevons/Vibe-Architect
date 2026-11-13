@@ -5,16 +5,17 @@ A node-graph canvas for designing software architecture. The graph is a
 that can be shown/hidden and, when it has children, collapsed into a compact
 card. Model files, folders, concepts, and objects as nodes; draw grouping
 noodles from folders down to their children, attach components to an object,
-and let an LLM generate code per node (with
-upstream context); ingest a real repository to build the graph automatically;
-and export the whole design as a prompt for another agent.
+ingest a real repository to build the graph automatically, and export the
+whole design as a prompt for another agent. The app also runs embedded in a
+host that owns storage, and ships a headless core a host toolset can edit
+through.
 
 ## Getting started
 
 ```bash
 npm install
 npm run dev        # start the dev server
-npm run build      # typecheck + production build
+npm run build      # typecheck + page build + headless core (dist/core.js)
 npm run typecheck  # tsc --noEmit only
 ```
 
@@ -27,10 +28,9 @@ npm run typecheck  # tsc --noEmit only
 - **Collapse/expand** — the chevron on a parent tucks its whole subtree into a compact card showing the item count; “Collapse All” / “Expand All” act on every parent
 - **Move a whole group** — drag a folder’s header bar (its name row) to slide the folder and its entire subtree together, keeping the group’s internal layout; dragging the card body moves just that one node
 - **Hierarchy browser** — a collapsible tree panel on the right (above the minimap) lists the whole scene graph; click a row to select and center the node, fold/unfold branches, or toggle a node's visibility; hidden nodes are dimmed; the “☰ Hierarchy” toolbar button shows/hides the panel
-- **Grouping edges** — the graph is an architecture doc, not an import map: only folders emit noodles (drag from a folder's bottom port onto any node's top port to group it under the folder; edges flow top to bottom). Click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too. Edge endpoints track each card's *measured* size, so noodles stay anchored to their ports when a card grows (edit form, description, agent output)
+- **Grouping edges** — the graph is an architecture doc, not an import map: only folders emit noodles (drag from a folder's bottom port onto any node's top port to group it under the folder; edges flow top to bottom). Click an edge to delete; double-click a label to rename; edges to hidden nodes are hidden too. Edge endpoints track each card's *measured* size, so noodles stay anchored to their ports when a card grows (edit form, description)
 - **Object aggregation** — an object is an entity (a game object, an interface screen, anything with many components) that collects arbitrary nodes as components. Drag from an object's top port onto any node to attach it (a teal noodle joins them); attached components stay put and show as chips on the object card, which also collapses to a compact card showing the component count. Objects never nest inside folders — grouping a folder onto an object is a no-op (use the object's port to attach)
-- **LLM agent** — per-node code generation with upstream context; parallel or serial "Run All" (serial follows topological order)
-- **Repository ingestion** — select a folder, the tool reads code files, describes them with an LLM, parents each file under an auto-created (collapsed) folder node with a grouping noodle from each folder to its children, and lays the graph out
+- **Repository ingestion** — select a folder, the tool lists code files without reading them, parents each file under an auto-created (collapsed) folder node with a grouping noodle from each folder to its children, and lays the graph out
 - **Tidy** — Sugiyama-style layered DAG layout with barycenter crossing reduction
 - **Save/Load** — export the graph as a `.json` file (browser download) and load it back via a file picker; files saved with the old group model load and migrate automatically
 - **Example graph** — `examples/vibe-architect.json` is a loadable snapshot of this project's own structure (folders, files, and folder → child grouping edges); open it via Save/Load → load to see the app model itself
@@ -49,7 +49,7 @@ src/
 │   ├── VibeArchitect.tsx     Main canvas: state, orchestration, world rendering
 │   ├── Toolbar.tsx           Top toolbar
 │   ├── StatusBar.tsx         Bottom hint bar
-│   ├── NodeCard.tsx          A node: display, edit form, eye/chevron, agent output, ports, size measurement
+│   ├── NodeCard.tsx          A node: display, edit form, eye/chevron, ports, size measurement
 │   ├── EdgeLabel.tsx         Inline-editable edge label (SVG)
 │   ├── HierarchyPanel.tsx    Scene hierarchy tree (right side, above minimap)
 │   ├── Minimap.tsx           Overview map with viewport + click-to-pan
@@ -74,10 +74,14 @@ src/
     ├── sceneGraph.ts         Tree ops: rendered set, subtree ids, cycle-safe re-parent
     ├── fileStorage.ts        JSON file save/load (download + file picker) + legacy migration
     ├── plugins.ts            Plugin package parse/validate, color + name resolution
-    ├── anthropic.ts          Minimal Anthropic Messages API client
-    ├── agent.ts              Per-node code generation + file description
-    ├── ingest.ts             Import parsing, import resolution, folder parenting, graph build
+    ├── operations.ts         Pure edit rules shared by the canvas and the core
+    ├── embedded.ts           Host storage: load, save, and poll one graph
+    ├── ingest.ts             File-path ingestion, folder parenting, graph build
     └── prompt.ts             Architecture prompt builder
+```
+`src/core.ts` is the headless entry. `vite.core.config.js` builds it to
+`dist/core.js`; a host imports that to apply the same graph rules the canvas
+uses.
 
 test/
 ├── mobile.test.html          Headless touch-gesture test harness
@@ -180,5 +184,6 @@ google-chrome --headless --disable-gpu --window-size=1200,800 \
 
 - Saved graphs are plain `.json` files — keep, share, or copy them to
   another machine and load them there.
-- LLM features call the Anthropic API directly from the browser, so they
-  require an environment where that request is allowed.
+- Embedded mode reads `./api/graph` beside the page when the URL carries
+  `?embed=1`. The host answers with `{ revision, graph, prompt }` and accepts
+  a `PUT { graph }`.

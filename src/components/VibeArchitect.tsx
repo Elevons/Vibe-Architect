@@ -1,12 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import type { Dispatch, PointerEvent as ReactPointerEvent, ReactElement, SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactElement } from "react";
 import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCanvasInteraction } from "../hooks/useCanvasInteraction";
 import { useWheelZoom } from "../hooks/useWheelZoom";
-import { RunAgent } from "../lib/agent";
 import { FONT, GROUP_COLORS, MAX_ZOOM, MIN_ZOOM, NODE_H, NODE_W } from "../lib/constants";
+import { LoadEmbeddedDocument, SaveEmbeddedDocument, IsEmbedded } from "../lib/embedded";
 import { DescendantBounds, AttachmentEdgePath, EdgePathFromPoints, EdgeSourcePoint, EdgeTargetPoint, PortForSide, PortIn, VisibleBounds } from "../lib/geometry";
-import { TopoSort } from "../lib/graph";
 import { CreateUniqueId } from "../lib/ids";
 import { DagLayout } from "../lib/layout";
 import { NodeDefaultsFor } from "../lib/plugins";
@@ -50,6 +49,18 @@ export function VibeArchitect() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasSize = useCanvasSize(canvasRef);
+
+  // Embedded mode: a host owns the one graph. The page loads it from
+  // `api/graph`, autosaves edits, and reloads when the host reports a newer
+  // revision (an edit made by the host's toolset).
+  const embedded = useMemo(() => IsEmbedded(), []);
+  const [embeddedReady, setEmbeddedReady] = useState(!embedded);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const loadedRef = useRef(!embedded);
+  const suppressSaveRef = useRef(false);
+  const revisionRef = useRef(0);
+  const savedSerializedRef = useRef("");
+  const latestSerializedRef = useRef("");
 
   const reportNodeSize = useCallback((id: string, width: number, height: number): void => {
     setNodeSizes(prev => {
@@ -162,7 +173,6 @@ export function VibeArchitect() {
     setNodes(prev => [...prev, {
       id, x: worldX, y: worldY, name: defaults.name, desc: defaults.desc,
       path: "", type, parentId: null, visible: true, collapsed: false,
-      agentOutput: null, agentStatus: "idle",
     }]);
     setSelected(id);
   };
@@ -257,41 +267,6 @@ export function VibeArchitect() {
     setSelected(id);
   };
 
-  // ── Agent ──
-  const handleRunAgent = async (nodeId: string): Promise<void> => {
-    updateNode(nodeId, { agentStatus: "running", agentOutput: null });
-    const node = nodes.find(entry => entry.id === nodeId);
-    if (node === undefined) {
-      return;
-    }
-    try {
-      const output = await RunAgent(node, nodes, edges);
-      setNodes(prev => prev.map(entry => (entry.id === nodeId ? { ...entry, agentOutput: output, agentStatus: "done" } : entry)));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setNodes(prev => prev.map(entry => (entry.id === nodeId ? { ...entry, agentOutput: `Error: ${message}`, agentStatus: "error" } : entry)));
-    }
-  };
-
-  const handleRunAll = async (): Promise<void> => {
-    const ordered = mode === "serial" ? TopoSort(nodes, edges) : nodes;
-    if (mode === "serial") {
-      for (const node of ordered) {
-        updateNode(node.id, { agentStatus: "running", agentOutput: null });
-        const freshNodes = await ReadLatestNodes(setNodes);
-        try {
-          const output = await RunAgent(node, freshNodes, edges);
-          setNodes(prev => prev.map(entry => (entry.id === node.id ? { ...entry, agentOutput: output, agentStatus: "done" } : entry)));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          setNodes(prev => prev.map(entry => (entry.id === node.id ? { ...entry, agentOutput: `Error: ${message}`, agentStatus: "error" } : entry)));
-        }
-      }
-    } else {
-      ordered.forEach(node => void handleRunAgent(node.id));
-    }
-  };
-
   // ── Zoom controls (zoom about the canvas center) ──
   const zoomAboutCenter = (factor: number): void => {
     const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
@@ -332,14 +307,14 @@ export function VibeArchitect() {
 
   // ── Save / load / ingest ──
   const getCurrentState = (): GraphSnapshot => ({
-    nodes: nodes.map(({ agentOutput, agentStatus, ...rest }) => ({ ...rest, agentOutput, agentStatus: "idle" as const })),
+    nodes,
     edges, mode,
     ...(plugins.length > 0 ? { plugins } : {}),
   });
 
   const handleLoad = (data: GraphSnapshot): void => {
     if (data.nodes !== undefined) {
-      setNodes(data.nodes.map(node => ({ ...node, agentOutput: node.agentOutput || null, agentStatus: "idle" as const })));
+      setNodes(data.nodes);
     }
     if (data.edges !== undefined) {
       setEdges(data.edges);
@@ -363,7 +338,104 @@ export function VibeArchitect() {
     setTimeout(() => fitBounds(VisibleBounds(newNodes, ComputeRenderedSet(newNodes))), 100);
   };
 
+  // ── Embedded host sync ──
+  useEffect(() => {
+    if (!embedded) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const document = await LoadEmbeddedDocument();
+      if (cancelled) {
+        return;
+      }
+      if (document !== null) {
+        const serialized = SerializeGraph(document.graph.nodes, document.graph.edges, document.graph.mode, document.graph.plugins ?? []);
+        suppressSaveRef.current = true;
+        revisionRef.current = document.revision;
+        savedSerializedRef.current = serialized;
+        latestSerializedRef.current = serialized;
+        setNodes(document.graph.nodes);
+        setEdges(document.graph.edges);
+        setMode(document.graph.mode);
+        setPlugins(document.graph.plugins ?? []);
+      }
+      loadedRef.current = true;
+      setEmbeddedReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [embedded]);
+
+  useEffect(() => {
+    if (!embedded || !loadedRef.current) {
+      return;
+    }
+    if (suppressSaveRef.current) {
+      suppressSaveRef.current = false;
+      return;
+    }
+    const graph = SnapshotOf(nodes, edges, mode, plugins);
+    const serialized = SerializeGraph(graph.nodes, graph.edges, graph.mode, graph.plugins ?? []);
+    latestSerializedRef.current = serialized;
+    if (serialized === savedSerializedRef.current) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void (async () => {
+        const saved = await SaveEmbeddedDocument(graph);
+        if (saved === null) {
+          setSyncError("Could not save this board.");
+          return;
+        }
+        revisionRef.current = saved.revision;
+        savedSerializedRef.current = serialized;
+        setSyncError(null);
+      })();
+    }, 700);
+    return () => { clearTimeout(timer); };
+  }, [embedded, nodes, edges, mode, plugins]);
+
+  useEffect(() => {
+    if (!embedded) {
+      return;
+    }
+    let stopped = false;
+    const timer = setInterval(() => {
+      void (async () => {
+        if (!loadedRef.current) {
+          return;
+        }
+        const document = await LoadEmbeddedDocument();
+        if (stopped || document === null || document.revision === revisionRef.current) {
+          return;
+        }
+        // Unsaved local edits win; their save bumps the revision next.
+        if (latestSerializedRef.current !== savedSerializedRef.current) {
+          return;
+        }
+        const serialized = SerializeGraph(document.graph.nodes, document.graph.edges, document.graph.mode, document.graph.plugins ?? []);
+        suppressSaveRef.current = true;
+        revisionRef.current = document.revision;
+        savedSerializedRef.current = serialized;
+        latestSerializedRef.current = serialized;
+        setNodes(document.graph.nodes);
+        setEdges(document.graph.edges);
+        setMode(document.graph.mode);
+        setPlugins(document.graph.plugins ?? []);
+      })();
+    }, 2500);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [embedded]);
+
   // ── Render ──
+  if (embedded && !embeddedReady) {
+    return (
+      <div style={{ width: "100%", height: "100vh", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#666", fontFamily: FONT, fontSize: 13 }}>
+        Loading board…
+      </div>
+    );
+  }
+
   const rect = canvasRef.current?.getBoundingClientRect();
   const gridSize = 24 * zoom;
 
@@ -391,7 +463,7 @@ export function VibeArchitect() {
         onSetAllCollapsed={setAllCollapsed}
         hierarchyOpen={showHierarchy}
         onToggleHierarchy={() => setShowHierarchy(open => !open)}
-        onRunAll={() => void handleRunAll()}
+        embedded={embedded}
         onShowSaveLoad={() => setShowSaveLoad(true)}
         onShowIngest={() => setShowIngest(true)}
         onShowPlugins={() => setShowPlugins(true)}
@@ -447,7 +519,7 @@ export function VibeArchitect() {
           transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
           pointerEvents: "none",
         }}>
-          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleStartAttachment, onPortEnd, handleRunAgent, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
+          {renderNodes(nodes, rendered, selected, handleSelect, handleDragStart, updateNode, deleteNode, handleStartEdge, handleEndEdge, handleStartAttachment, onPortEnd, zoom, toggleCollapse, setVisible, setParent, reportNodeSize, plugins)}
           {/* Group drag handles — rendered after the cards in the same layer so a
               handle is always painted above the cards (never occluded) and is
               grabbable. */}
@@ -493,6 +565,12 @@ export function VibeArchitect() {
         )}
       </div>
 
+      {syncError !== null && (
+        <div style={{ position: "fixed", left: "50%", bottom: 42, transform: "translateX(-50%)", background: "#2a1215", border: "1px solid #f8717140", color: "#f87171", borderRadius: 6, padding: "6px 12px", fontSize: 11, fontFamily: FONT, zIndex: 50 }}>
+          {syncError}
+        </div>
+      )}
+
       <StatusBar />
 
       {showPrompt && <PromptModal nodes={nodes} edges={edges} mode={mode} onClose={() => setShowPrompt(false)} />}
@@ -501,6 +579,16 @@ export function VibeArchitect() {
       {showPlugins && <PluginModal onClose={() => setShowPlugins(false)} onImport={handleImportPlugin} loadedPlugins={plugins} />}
     </div>
   );
+}
+
+/** The snapshot the embedded host stores. */
+function SnapshotOf(nodes: GraphNode[], edges: GraphEdge[], mode: RunMode, plugins: Plugin[]): GraphSnapshot {
+  return { nodes, edges, mode, ...(plugins.length > 0 ? { plugins } : {}) };
+}
+
+/** Stable text for comparing a graph with the last one saved. */
+function SerializeGraph(nodes: GraphNode[], edges: GraphEdge[], mode: RunMode, plugins: Plugin[]): string {
+  return JSON.stringify({ nodes, edges, mode, plugins });
 }
 
 /**
@@ -546,14 +634,6 @@ svg text { user-select: none; -webkit-user-select: none; }
   .va-status { padding-bottom: calc(4px + env(safe-area-inset-bottom)) !important; }
 }
 `;
-
-/** Read the latest nodes from state (used between serial agent steps). */
-function ReadLatestNodes(setNodes: Dispatch<SetStateAction<GraphNode[]>>): Promise<GraphNode[]> {
-  return new Promise(resolve => setNodes(prev => {
-    resolve(prev);
-    return prev;
-  }));
-}
 
 /** A folder's grouping box: its id, the bounds wrapping its rendered children, and its color. */
 type GroupBox = { id: string; bounds: { x: number; y: number; w: number; h: number }; color: string };
@@ -805,7 +885,6 @@ function renderNodes(
   handleEndEdge: (id: string, side: PortSide) => void,
   handleStartAttachment: (id: string, event: ReactPointerEvent) => void,
   onPortEnd: (id: string, side: PortSide) => void,
-  handleRunAgent: (id: string) => void,
   zoom: number,
   toggleCollapse: (id: string) => void,
   setVisible: (id: string, visible: boolean) => void,
@@ -830,7 +909,6 @@ function renderNodes(
       onEndEdge={handleEndEdge}
       onStartAttachment={handleStartAttachment}
       onPortEnd={onPortEnd}
-      onRunAgent={id => void handleRunAgent(id)}
       onToggleCollapse={toggleCollapse}
       onSetVisible={setVisible}
       onSetParent={setParent}

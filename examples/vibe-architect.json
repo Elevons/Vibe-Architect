@@ -10,9 +10,7 @@
       "x": 0,
       "y": 0,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "test",
@@ -24,9 +22,7 @@
       "x": 1480,
       "y": 0,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "examples",
@@ -38,9 +34,7 @@
       "x": 2220,
       "y": 0,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "scripts",
@@ -52,9 +46,7 @@
       "x": 2960,
       "y": 0,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "main",
@@ -66,9 +58,7 @@
       "x": 0,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "viteenv",
@@ -80,9 +70,7 @@
       "x": 370,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "mobiletest",
@@ -94,9 +82,7 @@
       "x": 1480,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "layouttest",
@@ -108,9 +94,7 @@
       "x": 1850,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "examplestest",
@@ -122,9 +106,7 @@
       "x": 2220,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "pluginstest",
@@ -136,9 +118,7 @@
       "x": 2590,
       "y": 190,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "app",
@@ -150,9 +130,19 @@
       "x": 0,
       "y": 380,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
+    },
+    {
+      "id": "core",
+      "name": "core.ts",
+      "path": "src/core.ts",
+      "desc": "Headless entry: graph operations, snapshot normalization, and the prompt builder for a host toolset.",
+      "type": "file",
+      "parentId": "src",
+      "x": 370,
+      "y": 380,
+      "visible": true,
+      "collapsed": false
     },
     {
       "id": "components",
@@ -164,9 +154,7 @@
       "x": 0,
       "y": 570,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "hooks",
@@ -178,9 +166,7 @@
       "x": 740,
       "y": 570,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "vibe",
@@ -192,9 +178,7 @@
       "x": 0,
       "y": 760,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "nodecard",
@@ -206,9 +190,7 @@
       "x": 0,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "minimap",
@@ -220,9 +202,7 @@
       "x": 370,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "hierarchyp",
@@ -234,9 +214,7 @@
       "x": 740,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "edgelabel",
@@ -248,9 +226,7 @@
       "x": 1110,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "usecanvassize",
@@ -262,9 +238,7 @@
       "x": 1480,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "usewheelzoom",
@@ -276,9 +250,7 @@
       "x": 1850,
       "y": 950,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "toolbar",
@@ -290,9 +262,7 @@
       "x": 0,
       "y": 1140,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "statusbar",
@@ -304,9 +274,7 @@
       "x": 370,
       "y": 1140,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "useinteraction",
@@ -318,9 +286,7 @@
       "x": 1480,
       "y": 1140,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "btn",
@@ -332,9 +298,7 @@
       "x": 0,
       "y": 1330,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "usedoubletap",
@@ -346,9 +310,7 @@
       "x": 370,
       "y": 1330,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "modals",
@@ -360,9 +322,7 @@
       "x": 740,
       "y": 1330,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "lib",
@@ -374,9 +334,7 @@
       "x": 1480,
       "y": 1330,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "promptmodal",
@@ -388,9 +346,7 @@
       "x": 740,
       "y": 1520,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "saveloadmodal",
@@ -402,9 +358,7 @@
       "x": 1110,
       "y": 1520,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "ingestmodal",
@@ -416,9 +370,7 @@
       "x": 1480,
       "y": 1520,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "pluginmodal",
@@ -430,23 +382,7 @@
       "x": 1850,
       "y": 1520,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
-    },
-    {
-      "id": "agent",
-      "name": "agent.ts",
-      "path": "src/lib/agent.ts",
-      "desc": "Per-node code-generation agent: builds a prompt and calls the model.",
-      "type": "file",
-      "parentId": "lib",
-      "x": 2220,
-      "y": 1520,
-      "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "ingest",
@@ -458,9 +394,7 @@
       "x": 2590,
       "y": 1520,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "modalshell",
@@ -472,9 +406,7 @@
       "x": 740,
       "y": 1710,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "geometry",
@@ -486,9 +418,19 @@
       "x": 1850,
       "y": 1710,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
+    },
+    {
+      "id": "operations",
+      "name": "operations.ts",
+      "path": "src/lib/operations.ts",
+      "desc": "Pure graph edit rules shared by the canvas and the headless core.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 2590,
+      "y": 1710,
+      "visible": true,
+      "collapsed": false
     },
     {
       "id": "prompt",
@@ -500,9 +442,7 @@
       "x": 2220,
       "y": 1710,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "graph",
@@ -514,9 +454,7 @@
       "x": 1850,
       "y": 1900,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "scenegraph",
@@ -528,9 +466,7 @@
       "x": 2220,
       "y": 1900,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "filestorage",
@@ -542,9 +478,19 @@
       "x": 2590,
       "y": 1900,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
+    },
+    {
+      "id": "embedded",
+      "name": "embedded.ts",
+      "path": "src/lib/embedded.ts",
+      "desc": "Host storage: load, save, and poll one graph beside a ticketed page.",
+      "type": "file",
+      "parentId": "lib",
+      "x": 2960,
+      "y": 1900,
+      "visible": true,
+      "collapsed": false
     },
     {
       "id": "layout",
@@ -556,9 +502,7 @@
       "x": 1850,
       "y": 2090,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "ids",
@@ -570,9 +514,7 @@
       "x": 2220,
       "y": 2090,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "plugins",
@@ -584,23 +526,7 @@
       "x": 2590,
       "y": 2090,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
-    },
-    {
-      "id": "anthropic",
-      "name": "anthropic.ts",
-      "path": "src/lib/anthropic.ts",
-      "desc": "Thin client for the Anthropic messages API.",
-      "type": "file",
-      "parentId": "lib",
-      "x": 1850,
-      "y": 2280,
-      "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "constants",
@@ -612,9 +538,7 @@
       "x": 2220,
       "y": 2280,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "types",
@@ -626,9 +550,7 @@
       "x": 2220,
       "y": 2470,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "examplejson",
@@ -640,9 +562,7 @@
       "x": 2220,
       "y": 2660,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "b2bkit",
@@ -654,9 +574,7 @@
       "x": 2590,
       "y": 2660,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     },
     {
       "id": "makeexample",
@@ -668,9 +586,7 @@
       "x": 2960,
       "y": 2660,
       "visible": true,
-      "collapsed": false,
-      "agentOutput": null,
-      "agentStatus": "idle"
+      "collapsed": false
     }
   ],
   "edges": [
@@ -719,127 +635,127 @@
     {
       "id": "e8",
       "from": "src",
-      "to": "components",
+      "to": "core",
       "label": ""
     },
     {
       "id": "e9",
       "from": "src",
-      "to": "hooks",
+      "to": "components",
       "label": ""
     },
     {
       "id": "e10",
-      "from": "components",
-      "to": "vibe",
+      "from": "src",
+      "to": "hooks",
       "label": ""
     },
     {
       "id": "e11",
       "from": "components",
-      "to": "nodecard",
+      "to": "vibe",
       "label": ""
     },
     {
       "id": "e12",
       "from": "components",
-      "to": "minimap",
+      "to": "nodecard",
       "label": ""
     },
     {
       "id": "e13",
       "from": "components",
-      "to": "hierarchyp",
+      "to": "minimap",
       "label": ""
     },
     {
       "id": "e14",
       "from": "components",
-      "to": "edgelabel",
+      "to": "hierarchyp",
       "label": ""
     },
     {
       "id": "e15",
-      "from": "hooks",
-      "to": "usecanvassize",
+      "from": "components",
+      "to": "edgelabel",
       "label": ""
     },
     {
       "id": "e16",
       "from": "hooks",
-      "to": "usewheelzoom",
+      "to": "usecanvassize",
       "label": ""
     },
     {
       "id": "e17",
-      "from": "components",
-      "to": "toolbar",
+      "from": "hooks",
+      "to": "usewheelzoom",
       "label": ""
     },
     {
       "id": "e18",
       "from": "components",
-      "to": "statusbar",
+      "to": "toolbar",
       "label": ""
     },
     {
       "id": "e19",
+      "from": "components",
+      "to": "statusbar",
+      "label": ""
+    },
+    {
+      "id": "e20",
       "from": "hooks",
       "to": "useinteraction",
       "label": ""
     },
     {
-      "id": "e20",
+      "id": "e21",
       "from": "components",
       "to": "btn",
       "label": ""
     },
     {
-      "id": "e21",
+      "id": "e22",
       "from": "hooks",
       "to": "usedoubletap",
       "label": ""
     },
     {
-      "id": "e22",
+      "id": "e23",
       "from": "components",
       "to": "modals",
       "label": ""
     },
     {
-      "id": "e23",
+      "id": "e24",
       "from": "src",
       "to": "lib",
       "label": ""
     },
     {
-      "id": "e24",
+      "id": "e25",
       "from": "modals",
       "to": "promptmodal",
       "label": ""
     },
     {
-      "id": "e25",
+      "id": "e26",
       "from": "modals",
       "to": "saveloadmodal",
       "label": ""
     },
     {
-      "id": "e26",
+      "id": "e27",
       "from": "modals",
       "to": "ingestmodal",
       "label": ""
     },
     {
-      "id": "e27",
+      "id": "e28",
       "from": "modals",
       "to": "pluginmodal",
-      "label": ""
-    },
-    {
-      "id": "e28",
-      "from": "lib",
-      "to": "agent",
       "label": ""
     },
     {
@@ -863,77 +779,83 @@
     {
       "id": "e32",
       "from": "lib",
-      "to": "prompt",
+      "to": "operations",
       "label": ""
     },
     {
       "id": "e33",
       "from": "lib",
-      "to": "graph",
+      "to": "prompt",
       "label": ""
     },
     {
       "id": "e34",
       "from": "lib",
-      "to": "scenegraph",
+      "to": "graph",
       "label": ""
     },
     {
       "id": "e35",
       "from": "lib",
-      "to": "filestorage",
+      "to": "scenegraph",
       "label": ""
     },
     {
       "id": "e36",
       "from": "lib",
-      "to": "layout",
+      "to": "filestorage",
       "label": ""
     },
     {
       "id": "e37",
       "from": "lib",
-      "to": "ids",
+      "to": "embedded",
       "label": ""
     },
     {
       "id": "e38",
       "from": "lib",
-      "to": "plugins",
+      "to": "layout",
       "label": ""
     },
     {
       "id": "e39",
       "from": "lib",
-      "to": "anthropic",
+      "to": "ids",
       "label": ""
     },
     {
       "id": "e40",
       "from": "lib",
-      "to": "constants",
+      "to": "plugins",
       "label": ""
     },
     {
       "id": "e41",
       "from": "lib",
-      "to": "types",
+      "to": "constants",
       "label": ""
     },
     {
       "id": "e42",
-      "from": "examples",
-      "to": "examplejson",
+      "from": "lib",
+      "to": "types",
       "label": ""
     },
     {
       "id": "e43",
       "from": "examples",
-      "to": "b2bkit",
+      "to": "examplejson",
       "label": ""
     },
     {
       "id": "e44",
+      "from": "examples",
+      "to": "b2bkit",
+      "label": ""
+    },
+    {
+      "id": "e45",
       "from": "scripts",
       "to": "makeexample",
       "label": ""
